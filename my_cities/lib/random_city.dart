@@ -2,6 +2,8 @@ import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
 import 'dart:math';
 
+import 'package:my_cities/titolo.dart';
+
 var random = Random();
 var cities = fotografie;
 var fotografie = [
@@ -53,6 +55,7 @@ class _RandomCityState extends State<RandomCity> {
           width: 500,
           height: 250,
         ),
+        Titolo('primo titolo', dimensione: 30),
         Text(city),
 
         //  Image(image: AssetImage('Assets/images/Camaleonte.jpg')),
@@ -68,6 +71,7 @@ class _RandomCityState extends State<RandomCity> {
           ),
         ),
         Column(children: cities.map((city) => Text(city)).toList()),
+        Titolo('secondo titolo'),
       ],
     );
   }

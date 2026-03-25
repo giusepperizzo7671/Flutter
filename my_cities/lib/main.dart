@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:my_cities/city_list.dart';
 import 'package:my_cities/random_city.dart';
 
 void main() {
@@ -19,7 +20,8 @@ class MainApp extends StatelessWidget {
           foregroundColor: const Color.fromARGB(255, 37, 38, 38),
         ),
         backgroundColor: const Color.fromARGB(255, 186, 185, 187),
-        body: RandomCity(),
+        // body: RandomCity(),
+        body: CityList(),
       ),
     );
   }

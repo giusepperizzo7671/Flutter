@@ -2,6 +2,13 @@ import 'package:my_cities/models/city.dart';
 
 const cities = [
   City(
+    name: 'Nosy Iranya',
+    country: 'Madagascar',
+    isVisited: true,
+    id: '011',
+    imageName: 'Nosy Be.jpg',
+  ),
+  City(
     name: 'New York',
     country: 'USA',
     isVisited: true,

@@ -22,22 +22,22 @@ class CityCard extends StatelessWidget {
       padding: const EdgeInsets.all(8),
       decoration: BoxDecoration(
         color: city.isVisited
-            ? const Color.fromARGB(255, 158, 198, 111)
-            : const Color.fromARGB(255, 238, 169, 169),
+            ? const Color.fromARGB(255, 205, 214, 208)
+            : const Color.fromARGB(255, 245, 196, 158),
         border: Border.all(color: Colors.grey),
-        borderRadius: BorderRadius.circular(8),
+        borderRadius: BorderRadius.circular(30),
       ),
       child: Column(
         children: [
           city.imageName != null
               ? Image(
-                  height: 200,
-                  width: 250,
+                  height: 100,
+                  width: 125,
                   image: AssetImage('Assets/images/${city.imageName}'),
                 )
               : Container(
-                  height: 200,
-                  width: 250,
+                  height: 100,
+                  width: 125,
                   color: Colors.grey,
                   child: const Center(
                     child: Text(
@@ -52,11 +52,13 @@ class CityCard extends StatelessWidget {
             children: [
               Text(
                 '${city.name}, ${city.country}',
-                style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+                style: TextStyle(fontSize: 16), //fontWeight: FontWeight.bold),
               ),
               Icon(
                 city.isVisited ? Icons.check_circle : Icons.cancel,
-                color: city.isVisited ? Colors.green : Colors.red,
+                color: city.isVisited
+                    ? Colors.green
+                    : const Color.fromARGB(255, 126, 123, 123),
               ),
               // ),
             ],

@@ -12,7 +12,7 @@ class Titolo extends StatelessWidget {
     return Text(
       testo,
       style: TextStyle(
-        color: const Color.fromARGB(255, 5, 35, 232),
+        color: const Color.fromARGB(255, 156, 169, 247),
         //fontSize: dimensione == null ? 20 : dimensione,
         fontSize: dimensione ?? 30,
       ),

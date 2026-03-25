@@ -16,7 +16,7 @@ class MainApp extends StatelessWidget {
         appBar: AppBar(
           centerTitle: true,
           backgroundColor: const Color.fromARGB(255, 86, 78, 247),
-          title: Text('Città visitate'),
+          title: Text('Elenco città'),
           foregroundColor: const Color.fromARGB(255, 37, 38, 38),
         ),
         backgroundColor: const Color.fromARGB(255, 186, 185, 187),

@@ -1,6 +1,7 @@
 // widget per mostrare una card per ogni città
 import 'package:my_cities/models/city.dart';
 import 'package:flutter/material.dart';
+import 'package:my_cities/titolo.dart';
 
 class CityCard extends StatelessWidget {
   // accetto una città come prop, per mostrare i suoi dettagli nella card
@@ -25,27 +26,34 @@ class CityCard extends StatelessWidget {
             ? const Color.fromARGB(255, 205, 214, 208)
             : const Color.fromARGB(255, 245, 196, 158),
         border: Border.all(color: Colors.grey),
-        borderRadius: BorderRadius.circular(30),
+        borderRadius: BorderRadius.circular(15),
       ),
       child: Column(
         children: [
-          city.imageName != null
-              ? Image(
-                  height: 100,
-                  width: 125,
-                  image: AssetImage('Assets/images/${city.imageName}'),
-                )
-              : Container(
-                  height: 100,
-                  width: 125,
-                  color: Colors.grey,
-                  child: const Center(
-                    child: Text(
-                      'Ops, no image!',
-                      style: TextStyle(color: Colors.white),
+          SizedBox(
+            height: 200,
+            // width: 300,
+            width: double.infinity,
+            child: city.imageName != null
+                ? Image(
+                    // height: 200,
+                    // width: 250,
+                    fit: BoxFit.cover,
+                    // alignment: AlignmentGeometry.center,
+                    image: AssetImage('Assets/images/${city.imageName}'),
+                  )
+                : Container(
+                    height: 200,
+                    width: 250,
+                    color: Colors.grey,
+                    child: Center(
+                      child: Text(
+                        'Ops, no image!',
+                        style: TextStyle(color: Colors.white),
+                      ),
                     ),
                   ),
-                ),
+          ),
           const SizedBox(height: 8),
           Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,

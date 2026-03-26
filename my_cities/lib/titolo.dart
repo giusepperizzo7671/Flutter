@@ -12,8 +12,8 @@ class Titolo extends StatelessWidget {
     return Text(
       testo,
       style: TextStyle(
-        color: const Color.fromARGB(255, 156, 169, 247),
-        //fontSize: dimensione == null ? 20 : dimensione,
+        color: const Color.fromARGB(255, 21, 21, 22),
+        //backgroundColor: const Color.fromARGB(255, 31, 31, 30),
         fontSize: dimensione ?? 30,
       ),
     );

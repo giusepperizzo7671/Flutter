@@ -40,9 +40,10 @@ class _CityListState extends State<CityList> {
               child: TextButton(
                 onPressed: () => filterCities(Filtrocitta.visitate),
                 style: TextButton.styleFrom(
-                  backgroundColor: Colors.green,
+                  backgroundColor: const Color.fromARGB(255, 16, 17, 16),
                   foregroundColor: Colors.white,
                   padding: EdgeInsets.symmetric(horizontal: 16, vertical: 4),
+                  side: BorderSide(color: Colors.lightGreenAccent, width: 2),
                 ),
                 child: Text('Città visitate'),
               ),
@@ -53,9 +54,13 @@ class _CityListState extends State<CityList> {
                   filterCities(Filtrocitta.tutte);
                 },
                 style: TextButton.styleFrom(
-                  backgroundColor: const Color.fromARGB(255, 92, 76, 175),
+                  backgroundColor: const Color.fromARGB(255, 11, 11, 11),
                   foregroundColor: Colors.white,
                   padding: EdgeInsets.symmetric(horizontal: 16, vertical: 4),
+                  side: BorderSide(
+                    color: const Color.fromARGB(255, 63, 3, 244),
+                    width: 2,
+                  ),
                 ),
                 child: Text('tutte'),
               ),
@@ -66,9 +71,13 @@ class _CityListState extends State<CityList> {
                   filterCities(Filtrocitta.nonvisitate);
                 },
                 style: TextButton.styleFrom(
-                  backgroundColor: const Color.fromARGB(255, 175, 76, 84),
+                  backgroundColor: const Color.fromARGB(255, 5, 5, 5),
                   foregroundColor: Colors.white,
                   padding: EdgeInsets.symmetric(horizontal: 16, vertical: 4),
+                  side: BorderSide(
+                    color: const Color.fromARGB(255, 249, 2, 11),
+                    width: 2,
+                  ),
                 ),
                 child: Text('Non visitate'),
               ),

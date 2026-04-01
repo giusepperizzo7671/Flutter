@@ -2,6 +2,7 @@
 import 'package:my_cities/models/city.dart';
 import 'package:flutter/material.dart';
 import 'package:my_cities/titolo.dart';
+import 'package:google_fonts/google_fonts.dart';
 
 class CityCard extends StatelessWidget {
   // accetto una città come prop, per mostrare i suoi dettagli nella card
@@ -60,7 +61,12 @@ class CityCard extends StatelessWidget {
             children: [
               Text(
                 '${city.name}, ${city.country}',
-                style: TextStyle(fontSize: 16), //fontWeight: FontWeight.bold),
+                //style: TextStyle(fontSize: 16), //fontWeight: FontWeight.bold),
+                //style: GoogleFonts.pacifico(fontSize: 16),
+                style: Theme.of(context).textTheme.titleLarge?.copyWith(
+                  fontFamily: GoogleFonts.playfairDisplay().fontFamily,
+                  color: Colors.black,
+                ),
               ),
               Icon(
                 city.isVisited ? Icons.check_circle : Icons.cancel,

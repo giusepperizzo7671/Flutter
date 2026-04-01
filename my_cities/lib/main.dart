@@ -1,7 +1,5 @@
 import 'package:flutter/material.dart';
-import 'package:my_cities/city_list.dart';
-import 'package:my_cities/random_city.dart';
-import 'package:my_cities/titolo.dart';
+import 'package:my_cities/city_screen.dart';
 
 var schemaColore = ColorScheme.fromSeed(
   seedColor: const Color.fromARGB(255, 36, 4, 242),
@@ -29,24 +27,7 @@ class MainApp extends StatelessWidget {
           titleLarge: TextStyle(fontSize: 16),
         ),
       ),
-      home: Scaffold(
-        appBar: AppBar(
-          centerTitle: true,
-          backgroundColor: const Color.fromARGB(255, 15, 17, 8),
-          title: Titolo('Elenco città', dimensione: 25),
-          //title: Text('Elenco città'),
-          //foregroundColor: const Color.fromARGB(255, 37, 38, 38),
-          actions: [
-            IconButton(
-              onPressed: showModal,
-              icon: Icon(Icons.add_circle_outline, color: Colors.blue),
-            ),
-          ],
-        ),
-        backgroundColor: const Color.fromARGB(255, 10, 10, 10),
-        //body: RandomCity(),
-        body: CityList(),
-      ),
+      home: CityScreen(),
     );
   }
 }

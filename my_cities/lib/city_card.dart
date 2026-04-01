@@ -1,21 +1,11 @@
-// widget per mostrare una card per ogni città
 import 'package:my_cities/models/city.dart';
+import 'package:my_cities/add_note.dart';
 import 'package:flutter/material.dart';
-import 'package:my_cities/titolo.dart';
 import 'package:google_fonts/google_fonts.dart';
 
 class CityCard extends StatelessWidget {
-  // accetto una città come prop, per mostrare i suoi dettagli nella card
   const CityCard({super.key, required this.city});
-  // uso City come tipo per la prop, così so esattamente quali campi ha e posso usarli direttamente.
   final City city;
-
-  //alternativa con props separate:
-  // const CityCard({super.key, required this.name, required this.country, required this.isVisited, this.imageName});
-  // final String name;
-  // final String country;
-  // final bool isVisited;
-  // final String? imageName;
 
   @override
   Widget build(BuildContext context) {
@@ -33,21 +23,17 @@ class CityCard extends StatelessWidget {
         children: [
           SizedBox(
             height: 200,
-            // width: 300,
             width: double.infinity,
             child: city.imageName != null
                 ? Image(
-                    // height: 200,
-                    // width: 250,
                     fit: BoxFit.cover,
-                    // alignment: AlignmentGeometry.center,
                     image: AssetImage('Assets/images/${city.imageName}'),
                   )
                 : Container(
                     height: 200,
                     width: 250,
                     color: Colors.grey,
-                    child: Center(
+                    child: const Center(
                       child: Text(
                         'Ops, no image!',
                         style: TextStyle(color: Colors.white),
@@ -59,22 +45,32 @@ class CityCard extends StatelessWidget {
           Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
-              Text(
-                '${city.name}, ${city.country}',
-                //style: TextStyle(fontSize: 16), //fontWeight: FontWeight.bold),
-                //style: GoogleFonts.pacifico(fontSize: 16),
-                style: Theme.of(context).textTheme.titleLarge?.copyWith(
-                  fontFamily: GoogleFonts.playfairDisplay().fontFamily,
-                  color: Colors.black,
-                ),
-              ),
               Icon(
                 city.isVisited ? Icons.check_circle : Icons.cancel,
                 color: city.isVisited
                     ? Colors.green
                     : const Color.fromARGB(255, 126, 123, 123),
               ),
-              // ),
+              Text(
+                '${city.name}, ${city.country}',
+                style: Theme.of(context).textTheme.titleLarge?.copyWith(
+                  fontFamily: GoogleFonts.playfairDisplay().fontFamily,
+                  color: Colors.black,
+                ),
+              ),
+              Row(
+                children: [
+                  IconButton(
+                    icon: const Icon(Icons.note_add, color: Colors.blueGrey),
+                    onPressed: () {
+                      showModalBottomSheet(
+                        context: context,
+                        builder: (context) => const AddNote(),
+                      );
+                    },
+                  ),
+                ],
+              ),
             ],
           ),
         ],

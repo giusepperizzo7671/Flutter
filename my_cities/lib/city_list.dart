@@ -1,7 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:my_cities/city_card.dart';
 import 'package:my_cities/data/cities.dart';
-import 'package:my_cities/models/city.dart';
+
+///import 'package:my_cities/models/city.dart';
 
 enum Filtrocitta { visitate, nonVisitate, tutte }
 
@@ -35,18 +36,6 @@ class _CityListState extends State<CityList> {
           children: [
             Expanded(
               child: TextButton(
-                onPressed: () => filterCities(Filtrocitta.visitate),
-                style: TextButton.styleFrom(
-                  backgroundColor: const Color.fromARGB(255, 16, 17, 16),
-                  foregroundColor: Colors.white,
-                  padding: EdgeInsets.symmetric(horizontal: 16, vertical: 4),
-                  side: BorderSide(color: Colors.lightGreenAccent, width: 2),
-                ),
-                child: Text('Città visitate'),
-              ),
-            ),
-            Expanded(
-              child: TextButton(
                 onPressed: () {
                   filterCities(Filtrocitta.tutte);
                 },
@@ -59,9 +48,22 @@ class _CityListState extends State<CityList> {
                     width: 2,
                   ),
                 ),
-                child: Text('tutte'),
+                child: Text('Tutte'),
               ),
             ),
+            Expanded(
+              child: TextButton(
+                onPressed: () => filterCities(Filtrocitta.visitate),
+                style: TextButton.styleFrom(
+                  backgroundColor: const Color.fromARGB(255, 16, 17, 16),
+                  foregroundColor: Colors.white,
+                  padding: EdgeInsets.symmetric(horizontal: 16, vertical: 4),
+                  side: BorderSide(color: Colors.lightGreenAccent, width: 2),
+                ),
+                child: Text('Città visitate'),
+              ),
+            ),
+
             Expanded(
               child: TextButton(
                 onPressed: () {

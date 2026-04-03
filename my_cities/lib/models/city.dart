@@ -5,6 +5,7 @@ class City {
     required this.isVisited,
     required this.id,
     this.imageName,
+    this.note,
   });
 
   final String name;
@@ -12,4 +13,5 @@ class City {
   final bool isVisited;
   final String id;
   final String? imageName;
+  final String? note;
 }

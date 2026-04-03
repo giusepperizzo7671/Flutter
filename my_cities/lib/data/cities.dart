@@ -2,7 +2,7 @@ import 'package:my_cities/models/city.dart';
 
 const cities = [
   City(
-    name: 'Nosy Iranya',
+    name: 'Nosy Be',
     country: 'Madagascar',
     isVisited: true,
     id: '011',
@@ -25,7 +25,7 @@ const cities = [
   City(
     name: 'Tokyo',
     country: 'Japan',
-    isVisited: true,
+    isVisited: false,
     id: '003',
     imageName: 'tokyo.jpg',
   ),
@@ -39,7 +39,7 @@ const cities = [
   City(
     name: 'Rio de Janeiro',
     country: 'Brazil',
-    isVisited: true,
+    isVisited: false,
     id: '005',
     imageName: 'rio_de_janeiro.jpg',
   ),
@@ -47,14 +47,14 @@ const cities = [
   City(
     name: 'London',
     country: 'UK',
-    isVisited: false,
+    isVisited: true,
     id: '006',
     imageName: 'london.jpg',
   ),
   City(
     name: 'Berlin',
     country: 'Germany',
-    isVisited: true,
+    isVisited: false,
     id: '007',
     imageName: 'berlin.jpg',
   ),
@@ -68,7 +68,7 @@ const cities = [
   City(
     name: 'Beijing',
     country: 'China',
-    isVisited: true,
+    isVisited: false,
     id: '009',
     imageName: 'beijing.jpg',
   ),

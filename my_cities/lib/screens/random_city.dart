@@ -1,11 +1,12 @@
 import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
+import 'package:my_cities/city_screen.dart';
 import 'dart:math';
 
 import 'package:my_cities/titolo.dart';
 
 var random = Random();
-var cities = fotografie;
+var randomcities = fotografie;
 var fotografie = [
   'beijing',
   'berlin',
@@ -28,7 +29,7 @@ class RandomCity extends StatefulWidget {
 }
 
 class _RandomCityState extends State<RandomCity> {
-  var city = cities[0];
+  var city = randomcities[0];
   var immagineSelezionata = 'Lightpainting-2';
   var fotocitta = fotografie[0];
   void prova() {
@@ -70,8 +71,16 @@ class _RandomCityState extends State<RandomCity> {
             ),
           ),
         ),
-        Column(children: cities.map((city) => Text(city)).toList()),
+        //Column(children: randomcities.map((city) => Text(city)).toList()),
         Titolo('secondo titolo'),
+        ElevatedButton(
+          onPressed: () {
+            Navigator.of(
+              context,
+            ).push(MaterialPageRoute(builder: (_) => CityScreen()));
+          },
+          child: Text('City screen'),
+        ),
       ],
     );
   }

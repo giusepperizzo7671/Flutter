@@ -1,6 +1,6 @@
 import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
-import 'package:my_cities/city_screen.dart';
+import 'city_screen.dart';
 import 'dart:math';
 
 import 'package:my_cities/titolo.dart';

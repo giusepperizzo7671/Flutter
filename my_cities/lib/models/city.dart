@@ -1,11 +1,12 @@
 class City {
-  const City({
+  City({
     required this.name,
     required this.country,
     required this.isVisited,
     required this.id,
     this.imageName,
     this.note,
+    this.images = const [],
   });
 
   final String name;
@@ -13,5 +14,6 @@ class City {
   final bool isVisited;
   final String id;
   final String? imageName;
-  final String? note;
+  String? note;
+  final List<String> images;
 }

@@ -5,7 +5,7 @@ import 'package:my_cities/add_city.dart';
 import 'package:my_cities/city_text_filter.dart';
 import 'package:my_cities/data/cities.dart';
 import 'package:my_cities/models/city.dart';
-import 'package:my_cities/random_city.dart';
+import 'random_city.dart';
 import 'package:google_fonts/google_fonts.dart';
 
 class CityScreen extends StatefulWidget {
@@ -113,7 +113,11 @@ class _CityScreenState extends State<CityScreen> {
           CityTextFilter(aggiornaFiltro: filtraCittaPerNome),
           // uso un widget separato per i filtri, così è più facile da gestire e da modificare.
           // Passo la funzione di filtraggio come prop, così il widget dei filtri può chiamarla quando l'utente seleziona un filtro diverso e aggiornare la lista delle città filtrate di conseguenza.
-          CityCategoryFilters(filtraCitta: filterCities),
+          // ← AGGIUNTO filtroAttivo: serve a CityCategoryFilters per sapere quale bottone evidenziare con il bordo colorato
+          CityCategoryFilters(
+            filtraCitta: filterCities,
+            filtroAttivo: filtroAttivo,
+          ),
           // Ora cityList contiene solo l'elenco delle città filtrate, e viene aggiornato ogni volta che l'utente cambia il filtro o digita un testo nel filtro di ricerca.
           Expanded(
             child: CityList(

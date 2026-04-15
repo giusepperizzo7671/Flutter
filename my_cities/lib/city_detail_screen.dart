@@ -13,7 +13,8 @@ class CityDetailScreen extends StatelessWidget {
       appBar: AppBar(title: Text(city.name)),
       body: Center(
         child: Text(
-          'Dettagli della città: ${city.name}, visitata: ${city.isVisited}, id: ${city.id}',
+          style: TextStyle(color: Colors.greenAccent),
+          'Dettagli della città: ${city.name}, visitata: ${city.isVisited}, id: ${city.id}, note :${city.note}',
         ),
       ),
     );

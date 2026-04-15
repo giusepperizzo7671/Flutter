@@ -1,37 +1,44 @@
 import 'package:flutter/material.dart';
 
-class AddNote extends StatefulWidget {
-  const AddNote({super.key});
+class AddNote extends StatelessWidget {
+  const AddNote({super.key, required this.onSave, this.initialNote});
 
-  @override
-  State<AddNote> createState() => _AddNoteState();
-}
+  final Function(String) onSave; //
+  final String? initialNote; //
 
-class _AddNoteState extends State<AddNote> {
   @override
   Widget build(BuildContext context) {
-    return (Container(
-      padding: EdgeInsets.all(16),
+    final TextEditingController controller = TextEditingController(
+      text: initialNote ?? '', //
+    );
+
+    return Padding(
+      padding: const EdgeInsets.all(16),
       child: Column(
+        mainAxisSize: MainAxisSize.min,
         children: [
-          Text(
-            'Inserisci note',
-            style: Theme.of(context).textTheme.titleLarge?.copyWith(
-              // per il colore uso il colore primary del colorScheme, che è il colore principale del tema, e che si adatta bene per i titoli.
-              color: Theme.of(context).colorScheme.primary,
-            ),
-          ),
-          SizedBox(height: 24),
           TextField(
+            controller: controller,
             maxLines: null,
             minLines: 4,
             keyboardType: TextInputType.multiline,
-            decoration: InputDecoration(border: OutlineInputBorder()),
+            style: const TextStyle(color: Colors.white),
+            decoration: const InputDecoration(
+              label: Text('Note'),
+              border: OutlineInputBorder(),
+              alignLabelWithHint: true,
+            ),
           ),
-          SizedBox(height: 24),
-          ElevatedButton(onPressed: () {}, child: Text('Aggiungi')),
+          const SizedBox(height: 12),
+          ElevatedButton(
+            onPressed: () {
+              onSave(controller.text); //
+              Navigator.pop(context); //
+            },
+            child: const Text('Salva'),
+          ),
         ],
       ),
-    ));
+    );
   }
 }

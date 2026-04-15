@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:my_cities/models/city.dart';
 import 'package:my_cities/screens/city_screen.dart';
 import 'package:my_cities/screens/grid_screen.dart';
 import 'package:my_cities/screens/random_city.dart';
@@ -10,7 +11,7 @@ var temaChiaro = ColorScheme.fromSeed(
 );
 var temaScuro = ColorScheme.fromSeed(
   brightness: Brightness.dark,
-  seedColor: const Color.fromARGB(255, 75, 0, 99),
+  seedColor: const Color.fromARGB(255, 3, 3, 3),
 );
 
 void main() {
@@ -24,8 +25,8 @@ class MainApp extends StatelessWidget {
   Widget build(BuildContext context) {
     return MaterialApp(
       // copyWith è un metodo che permette di creare una nuova istanza di un oggetto, copiando tutte le proprietà dell'oggetto originale e sovrascrivendo solo quelle specificate. In questo modo, si può modificare solo una parte del tema senza dover ridefinire tutto da capo
-      theme: ThemeData().copyWith(
-        colorScheme: temaChiaro,
+      theme: ThemeData.dark().copyWith(
+        colorScheme: temaScuro,
         textButtonTheme: TextButtonThemeData(
           // styleFrom funziona come copyWith, ma per i bottoni. Permette di definire alcune proprietà del bottone, come backgroundColor, foregroundColor, padding, etc. In questo modo, si può avere uno stile coerente per tutti i bottoni dell'applicazione, e modificarlo facilmente in un unico posto
           style: TextButton.styleFrom(
@@ -33,9 +34,9 @@ class MainApp extends StatelessWidget {
             // altri colori utili in colorScheme: secondary, che è un colore secondario del tema, e che si adatta bene per i bottoni secondari o per gli elementi di supporto. background, che è il colore di sfondo dell'applicazione, e che si adatta bene per il corpo dell'applicazione. surface, che è un colore di sfondo più chiaro del background, e che si adatta bene per card o menu.
             // onprimary è un colore che si adatta bene per il testo o gli elementi che vengono mostrati sopra al primary, come il testo dei bottoni o le icone.  In questo modo, si ha un contrasto sufficiente tra il colore di sfondo del bottone e il colore del testo, rendendo il bottone facile da leggere e da usare.
             // puoi provare altre combinazioni, come ad esempio usare primaryContainer come backgroundColor, e onPrimaryContainer come foregroundColor. Oppure usare secondary come backgroundColor, e onSecondary come foregroundColor, per avere un effetto più vivace e colorato. L'importante è mantenere un buon contrasto tra i colori, per garantire la leggibilità e l'usabilità dell'interfaccia.
-            backgroundColor: temaChiaro.primaryContainer,
-            foregroundColor: temaChiaro.onPrimaryContainer,
-            // backgroundColor: Colors.red,
+            //backgroundColor: temaScuro.primaryContainer,
+            //foregroundColor: temaScuro.onPrimaryContainer,
+            backgroundColor: const Color.fromARGB(255, 10, 10, 10),
             padding: EdgeInsets.symmetric(horizontal: 18, vertical: 8),
           ),
         ),

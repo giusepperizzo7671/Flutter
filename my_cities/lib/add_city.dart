@@ -78,7 +78,7 @@ class _AddCityState extends State<AddCity> {
             spacing: 12,
             children: [
               Text(
-                'Add city',
+                'Aggiungi città',
                 // theme.of(context) è un modo per accedere al tema dell'applicazione, e quindi ai colori, ai font, etc. definiti nel tema. In questo caso, prendo lo stile titleLarge del tema, e lo modifico con copyWith per cambiare solo il colore, mantenendo tutte le altre proprietà dello stile originale. In questo modo, si può avere uno stile coerente per tutti i titoli dell'applicazione, e modificarlo facilmente in un unico posto, cambiando il tema dell'applicazione.
                 style: Theme.of(context).textTheme.titleLarge?.copyWith(
                   // per il colore uso il colore primary del colorScheme, che è il colore principale del tema, e che si adatta bene per i titoli.
@@ -86,10 +86,11 @@ class _AddCityState extends State<AddCity> {
                 ),
               ),
               TextField(
+                style: const TextStyle(color: Colors.white),
                 // assegno il controller all'input di testo per poter leggere il contenuto digitato dall'utente
                 controller: cityNameController,
                 decoration: InputDecoration(
-                  label: Text('City name'),
+                  label: Text('Città'),
                   border: OutlineInputBorder(),
                 ),
               ),
@@ -102,10 +103,11 @@ class _AddCityState extends State<AddCity> {
                     )
                   : SizedBox.shrink(), // se non c'è errore, mostro un widget vuoto che non occupa spazio
               TextField(
+                style: const TextStyle(color: Colors.white),
                 controller: countryNameController,
                 // keyboardType: TextInputType.phone,
                 decoration: InputDecoration(
-                  label: Text('Country name'),
+                  label: Text('Paese'),
                   border: OutlineInputBorder(),
                   // con errorText posso mostrare un messaggio di errore sotto l'input, che appare solo se c'è un errore (cioè se erroreNomePaese è diverso da stringa vuota).
                   // L'utente ha un feedback visivo chiaro su cosa deve correggere.
@@ -115,10 +117,7 @@ class _AddCityState extends State<AddCity> {
                 ),
               ),
               // SizedBox(height: 24),
-              ElevatedButton(
-                onPressed: submitCity,
-                child: Text('Add new city'),
-              ),
+              ElevatedButton(onPressed: submitCity, child: Text('Salva')),
             ],
           ),
         ),

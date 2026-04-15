@@ -1,12 +1,23 @@
 import 'package:my_cities/models/city.dart';
 
-const cities = [
+var cities = [
   City(
     name: 'Nosy Be',
     country: 'Madagascar',
     isVisited: true,
     id: '011',
     imageName: 'Nosy Be.jpg',
+    note: '',
+    images: [
+      // 👈 tutte le immagini per la griglia
+      'Nosy (1).jpg',
+      'Nosy (2).jpg',
+      'Nosy (3).jpg',
+      'Nosy (4).jpg',
+      'Nosy (5).jpg',
+      'Nosy (6).jpg',
+      'Nosy (7).jpg',
+    ],
   ),
   City(
     name: 'New York',

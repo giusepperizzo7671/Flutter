@@ -5,14 +5,20 @@ import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:my_cities/screens/grid_screen.dart';
 
-class CityCard extends StatelessWidget {
-  // accetto una città come prop, per mostrare i suoi dettagli nella card
+// StatefulWidget perché la card ha uno stato interno che può cambiare:
+// isVisited quando l'utente preme il bottone switch, e la nota della città
+class CityCard extends StatefulWidget {
   const CityCard({super.key, required this.city});
 
   // uso City come tipo per la prop, così so esattamente quali campi ha
   // e posso usarli direttamente senza props separate
   final City city;
 
+  @override
+  State<CityCard> createState() => _CityCardState();
+}
+
+class _CityCardState extends State<CityCard> {
   @override
   Widget build(BuildContext context) {
     // InkWell aggiunge un effetto visivo (ripple) quando si clicca sulla card,
@@ -24,20 +30,23 @@ class CityCard extends StatelessWidget {
         // come impilare un foglio sopra un altro.
         // MaterialPageRoute definisce la schermata da mostrare e l'animazione di transizione.
         Navigator.of(context).push(
-          MaterialPageRoute(builder: (context) => CityDetailScreen(city: city)),
+          MaterialPageRoute(
+            builder: (context) => CityDetailScreen(city: widget.city),
+          ),
         );
       },
       child: Container(
         margin: const EdgeInsets.all(8),
         padding: const EdgeInsets.all(8),
-
         decoration: BoxDecoration(
-          // colore diverso in base allo stato isVisited:
-          // verde chiaro se visitata, rosso chiaro se non visitata
-          color: city.isVisited
-              ? const Color.fromARGB(255, 213, 246, 176)
-              : const Color.fromARGB(255, 252, 184, 184),
-          border: Border.all(color: Colors.black, width: 1),
+          color: Colors.black, // 👈 sfondo nero
+          border: Border.all(
+            color: widget.city.isVisited
+                ? Colors
+                      .blue // 👈 blu se visitata
+                : Colors.green, // 👈 verde se non visitata
+            width: 2,
+          ),
           borderRadius: BorderRadius.circular(8),
         ),
         child: Column(
@@ -49,11 +58,13 @@ class CityCard extends StatelessWidget {
               width: double.infinity,
               // operatore ternario: se imageName non è null mostra l'immagine,
               // altrimenti mostra un container grigio con un messaggio di errore
-              child: city.imageName != null
+              child: widget.city.imageName != null
                   ? Image(
                       fit: BoxFit
                           .cover, // riempie il SizedBox ritagliando l'immagine se necessario
-                      image: AssetImage('Assets/images/${city.imageName}'),
+                      image: AssetImage(
+                        'Assets/images/${widget.city.imageName}',
+                      ),
                     )
                   : Container(
                       height: 150,
@@ -70,52 +81,138 @@ class CityCard extends StatelessWidget {
 
             const SizedBox(height: 1),
 
-            // Row principale con i tre elementi distribuiti su tutta la larghezza
+            // Row principale con gli elementi distribuiti su tutta la larghezza
             Row(
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
-                // icona che indica se la città è stata visitata o meno
-                Icon(
-                  city.isVisited ? Icons.check_circle : Icons.cancel,
-                  color: city.isVisited ? Colors.green : Colors.red,
-                ),
-                IconButton(
-                  icon: const Icon(Icons.photo_library, color: Colors.blueGrey),
-                  onPressed: () {
-                    // Navigator.push apre GridScreen passando la città corrente
-                    Navigator.of(context).push(
-                      MaterialPageRoute(
-                        builder: (context) => GridScreen(city: city),
-                      ),
-                    );
+                // bottone switch per cambiare lo stato visitata/non visitata.
+                // GestureDetector intercetta il tap senza effetto ripple,
+                // così non interferisce con il tap dell'InkWell della card
+                GestureDetector(
+                  onTap: () {
+                    setState(() {
+                      widget.city.isVisited = !widget.city.isVisited;
+                    });
                   },
+                  child: Container(
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 8,
+                      vertical: 4,
+                    ),
+                    decoration: BoxDecoration(
+                      color: widget.city.isVisited
+                          ? Colors.blue.withOpacity(0.2) // 👈 blu se visitata
+                          : Colors.green.withOpacity(
+                              0.2,
+                            ), // 👈 verde se non visitata
+                      borderRadius: BorderRadius.circular(20),
+                      border: Border.all(
+                        color: widget.city.isVisited
+                            ? Colors
+                                  .blue // 👈 blu se visitata
+                            : Colors.green, // 👈 verde se non visitata
+                      ),
+                    ),
+                    child: Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Icon(
+                          widget.city.isVisited
+                              ? Icons.check_circle
+                              : Icons.cancel,
+                          color: widget.city.isVisited
+                              ? Colors
+                                    .blue // 👈 blu se visitata
+                              : Colors.green, // 👈 verde se non visitata
+                          size: 16,
+                        ),
+                        const SizedBox(width: 4),
+                        Text(
+                          widget.city.isVisited ? 'Visitata' : 'Non visitata',
+                          style: TextStyle(
+                            color: widget.city.isVisited
+                                ? Colors
+                                      .blue // 👈 blu se visitata
+                                : Colors.green, // 👈 verde se non visitata
+                            fontSize: 12,
+                            fontWeight: FontWeight.bold,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
                 ),
 
                 // nome e paese della città con font Playfair Display
                 Text(
-                  '${city.name}, ${city.country}',
+                  '${widget.city.name}, ${widget.city.country}',
                   style: Theme.of(context).textTheme.titleLarge?.copyWith(
                     // copyWith sovrascrive solo i campi specificati,
                     // mantenendo il resto dello stile dal tema
                     fontFamily: GoogleFonts.playfairDisplay().fontFamily,
-                    color: Colors.black,
+                    color: const Color.fromARGB(255, 245, 243, 243),
+                    fontSize: 18,
                   ),
                 ),
 
-                // bottone per aggiungere una nota alla città.
-                // showModalBottomSheet apre un pannello dal basso
-                // senza navigare in una nuova schermata
-                IconButton(
-                  icon: const Icon(Icons.note_add, color: Colors.blueGrey),
-                  onPressed: () {
-                    showModalBottomSheet(
-                      context: context,
-                      builder: (context) => AddNote(onSave: (String p1) {}),
-                    );
-                  },
+                // Row interna per raggruppare le icone a destra
+                Row(
+                  children: [
+                    // bottone per aprire la galleria immagini della città.
+                    // Navigator.push apre GridScreen passando la città corrente
+                    IconButton(
+                      icon: const Icon(
+                        Icons.photo_library,
+                        color: Colors.blueGrey,
+                      ),
+                      onPressed: () {
+                        Navigator.of(context).push(
+                          MaterialPageRoute(
+                            builder: (context) => GridScreen(city: widget.city),
+                          ),
+                        );
+                      },
+                    ),
+
+                    // bottone per aggiungere una nota alla città.
+                    // showModalBottomSheet apre un pannello dal basso
+                    // senza navigare in una nuova schermata
+                    IconButton(
+                      icon: const Icon(Icons.note_add, color: Colors.blueGrey),
+                      onPressed: () {
+                        showModalBottomSheet(
+                          context: context,
+                          builder: (context) => AddNote(
+                            // passa la nota già salvata così l'utente può modificarla
+                            initialNote: widget.city.note,
+                            onSave: (text) {
+                              // setState aggiorna la UI dopo aver salvato la nota
+                              setState(() {
+                                widget.city.note = text;
+                              });
+                            },
+                          ),
+                        );
+                      },
+                    ),
+                  ],
                 ),
               ],
             ),
+
+            // mostra la nota sotto la card solo se esiste e non è vuota
+            if (widget.city.note != null && widget.city.note!.isNotEmpty)
+              Padding(
+                padding: const EdgeInsets.only(top: 8),
+                child: Text(
+                  widget.city.note!,
+                  style: const TextStyle(
+                    color: Colors.black54,
+                    fontSize: 13,
+                    fontStyle: FontStyle.italic,
+                  ),
+                ),
+              ),
           ],
         ),
       ),

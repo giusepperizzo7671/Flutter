@@ -11,7 +11,7 @@ class City {
 
   final String name;
   final String country;
-  final bool isVisited;
+  bool isVisited;
   final String id;
   final String? imageName;
   String? note;

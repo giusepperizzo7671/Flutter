@@ -5,6 +5,7 @@ import 'package:my_cities/add_city.dart';
 import 'package:my_cities/city_text_filter.dart';
 import 'package:my_cities/data/cities.dart';
 import 'package:my_cities/models/city.dart';
+import 'package:my_cities/db_helper.dart';
 import 'package:google_fonts/google_fonts.dart';
 
 class CityScreen extends StatefulWidget {
@@ -16,7 +17,8 @@ class CityScreen extends StatefulWidget {
 
 class _CityScreenState extends State<CityScreen> {
   // lista di tutte le città, inizializzata con i dati del file cities.dart
-  var allCities = cities;
+  // e poi integrata con le città salvate nel database
+  List<City> allCities = [];
 
   // filtro attivo per categoria (visitata, non visitata, tutte)
   CityFilter filtroAttivo = CityFilter.all;
@@ -24,40 +26,97 @@ class _CityScreenState extends State<CityScreen> {
   // testo digitato dall'utente per filtrare le città per nome
   String filtroNomeCitta = '';
 
-  // funzione per aggiornare il filtro per categoria
+  // istanza del database helper per salvare e caricare le città
+  final DbHelper _dbHelper = DbHelper();
+
+  // indica se stiamo caricando i dati dal database
+  bool _loading = true;
+
+  @override
+  void initState() {
+    super.initState();
+    // carica le città dal database all'avvio
+    _caricaCitta();
+  }
+
+  // carica le città salvate nel database e le unisce a quelle di cities.dart.
+  // le città del db vengono messe in cima, quelle di cities.dart in fondo
+  Future<void> _caricaCitta() async {
+    final cittaDaDb = await _dbHelper.leggiCitta();
+
+    // converte le Map del database in oggetti City
+    final cittaSalvate = cittaDaDb
+        .map(
+          (map) => City(
+            id: map['id'] as String,
+            name: map['name'] as String,
+            country: map['country'] as String,
+            isVisited: (map['is_visited'] as int) == 1,
+            imageName: map['image_name'] as String?,
+            note: map['note'] as String?,
+          ),
+        )
+        .toList();
+
+    // unisce le città salvate nel db con quelle predefinite di cities.dart,
+    // evitando duplicati controllando gli id
+    final idSalvati = cittaSalvate.map((c) => c.id).toSet();
+    final cittePredefinite = cities
+        .where((c) => !idSalvati.contains(c.id))
+        .toList();
+
+    setState(() {
+      allCities = [...cittaSalvate, ...cittePredefinite];
+      _loading = false;
+    });
+  }
+
+  // aggiorna il filtro per categoria
   void filterCities(CityFilter filtro) {
     setState(() {
       filtroAttivo = filtro;
     });
   }
 
-  // funzione per aggiornare il filtro per nome, chiamata dal widget CityTextFilter
-  // ogni volta che l'utente digita qualcosa nel campo di ricerca
+  // aggiorna il filtro per nome, chiamata dal widget CityTextFilter
   void filtraCittaPerNome(String testo) {
     setState(() {
       filtroNomeCitta = testo;
     });
   }
 
-  // funzione per aggiungere una nuova città alla lista.
-  // usa lo spread operator (...) per creare un nuovo array con la città nuova in cima
-  void addCity(City nuovaCitta) {
+  // aggiunge una nuova città alla lista e la salva nel database.
+  // usa lo spread operator (...) per creare un nuovo array con la città in cima
+  Future<void> addCity(City nuovaCitta) async {
+    // salva la città nel database SQLite per la persistenza
+    await _dbHelper.salvaCitta(
+      id: nuovaCitta.id,
+      name: nuovaCitta.name,
+      country: nuovaCitta.country,
+      isVisited: nuovaCitta.isVisited,
+      imageName: nuovaCitta.imageName,
+      note: nuovaCitta.note,
+    );
+
     setState(() {
       allCities = [nuovaCitta, ...allCities];
     });
   }
 
-  // funzione per rimuovere una città dalla lista in base al suo id univoco.
-  // where filtra l'array tenendo solo le città con id diverso da quello da eliminare
-  void deleteCity(String idCitta) {
+  // rimuove una città dalla lista e dal database in base al suo id univoco
+  Future<void> deleteCity(String idCitta) async {
+    // elimina dal database solo le città aggiunte dall'utente.
+    // le città predefinite di cities.dart non sono nel db, quindi
+    // eliminaCitta non fa nulla se l'id non esiste
+    await _dbHelper.eliminaCitta(idCitta);
+
     setState(() {
-      allCities = allCities.where((citta) => citta.id != idCitta).toList();
+      allCities = allCities.where((c) => c.id != idCitta).toList();
     });
   }
 
-  // funzione che apre la modale per aggiungere una nuova città.
-  // showModalBottomSheet mostra un pannello dal basso senza navigare in una nuova pagina,
-  // in modo da mantenere il contesto della pagina principale
+  // apre la modale per aggiungere una nuova città.
+  // showModalBottomSheet mostra un pannello dal basso senza navigare
   void showModal(BuildContext context) {
     showModalBottomSheet(
       context: context,
@@ -67,7 +126,12 @@ class _CityScreenState extends State<CityScreen> {
 
   @override
   Widget build(BuildContext context) {
-    // parto dalla lista completa e applico i filtri in sequenza
+    // mostra un indicatore di caricamento mentre si leggono i dati dal db
+    if (_loading) {
+      return const Scaffold(body: Center(child: CircularProgressIndicator()));
+    }
+
+    // applica i filtri in sequenza sulla lista completa
     List<City> cittaFiltrate = allCities;
 
     // primo filtro: categoria (visitata, non visitata, tutte)
@@ -75,12 +139,10 @@ class _CityScreenState extends State<CityScreen> {
       cittaFiltrate = allCities.where((city) => city.isVisited).toList();
     } else if (filtroAttivo == CityFilter.notVisited) {
       cittaFiltrate = allCities.where((city) => !city.isVisited).toList();
-    } else if (filtroAttivo == CityFilter.all) {
-      cittaFiltrate = allCities;
     }
 
-    // secondo filtro: testo digitato dall'utente nel campo di ricerca.
-    // toLowerCase rende il filtro case-insensitive, così "roma" trova anche "Roma"
+    // secondo filtro: testo digitato nel campo di ricerca.
+    // toLowerCase rende il filtro case-insensitive
     cittaFiltrate = cittaFiltrate
         .where(
           (city) =>
@@ -94,14 +156,11 @@ class _CityScreenState extends State<CityScreen> {
         title: Text(
           'Viaggi',
           style: Theme.of(context).textTheme.titleLarge?.copyWith(
-            // copyWith sovrascrive solo il font e la dimensione,
-            // mantenendo il resto dello stile dal tema
             fontFamily: GoogleFonts.playfairDisplay().fontFamily,
             fontSize: 24,
           ),
         ),
-        // actions mostra widget alla destra dell'appbar.
-        // In questo caso un bottone per aprire la modale di aggiunta città
+        // bottone per aprire la modale di aggiunta città
         actions: [
           IconButton(
             onPressed: () => showModal(context),
@@ -111,19 +170,16 @@ class _CityScreenState extends State<CityScreen> {
       ),
       body: Column(
         children: [
-          // widget per filtrare le città per nome.
-          // aggiornaFiltro è la callback chiamata ogni volta che l'utente digita
+          // widget per filtrare le città per nome
           CityTextFilter(aggiornaFiltro: filtraCittaPerNome),
 
-          // widget per i filtri per categoria (visitata, non visitata, tutte).
-          // filtroAttivo serve a CityCategoryFilters per evidenziare il bottone attivo
+          // widget per i filtri per categoria
           CityCategoryFilters(
             filtraCitta: filterCities,
             filtroAttivo: filtroAttivo,
           ),
 
-          // Expanded fa sì che CityList occupi tutto lo spazio rimanente nella colonna.
-          // filteredCities riceve la lista già filtrata dai due filtri sopra
+          // lista delle città filtrate, occupa tutto lo spazio rimanente
           Expanded(
             child: CityList(
               filteredCities: cittaFiltrate,

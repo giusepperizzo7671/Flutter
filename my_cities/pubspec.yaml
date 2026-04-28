@@ -11,6 +11,12 @@ dependencies:
     sdk: flutter
   google_fonts: ^8.0.2
   uuid: ^4.5.3
+  sqflite: ^2.4.2
+  path: ^1.9.1
+  csv: ^6.0.0
+  file_picker: ^8.0.0
+  image_picker: ^1.1.2
+  spreadsheet_decoder: ^2.2.0
 
 dev_dependencies:
   flutter_test:

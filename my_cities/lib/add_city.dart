@@ -1,8 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:my_cities/models/city.dart';
 import 'package:uuid/uuid.dart';
+import 'package:image_picker/image_picker.dart';
+import 'dart:io';
 
-// uuid è una libreria che permette di generare identificatori univoci, utili per assegnare un id unico a ogni città aggiunta dall'utente, in modo da poterle distinguere facilmente anche se hanno lo stesso nome o paese.
 var uuid = Uuid();
 
 class AddCity extends StatefulWidget {
@@ -15,46 +16,70 @@ class AddCity extends StatefulWidget {
 }
 
 class _AddCityState extends State<AddCity> {
-  // creo due controller per leggere il valore degli input di testo
   final cityNameController = TextEditingController();
   final countryNameController = TextEditingController();
+  final ImagePicker _picker = ImagePicker();
+
   String erroreNomeCitta = '';
   String erroreNomePaese = '';
 
+  // percorso locale dell'immagine di copertina selezionata dalla galleria.
+  // null se l'utente non ha ancora selezionato nessuna immagine
+  String? _percorsoImmagine;
+
+  // apre la galleria del telefono per selezionare l'immagine di copertina.
+  // pickImage permette di selezionare una sola immagine
+  Future<void> _selezionaImmagine() async {
+    try {
+      final XFile? immagine = await _picker.pickImage(
+        source: ImageSource.gallery,
+        // riduce la qualità per non occupare troppa memoria
+        imageQuality: 85,
+      );
+      if (immagine != null) {
+        setState(() {
+          _percorsoImmagine = immagine.path;
+        });
+      }
+    } catch (e) {
+      print('ERRORE selezione immagine: $e');
+    }
+  }
+
   void submitCity() {
-    // con il metodo .text leggo il testo che l'utente ha inserito nell'input
     final cityName = cityNameController.text;
     final countryName = countryNameController.text;
 
-    // logica per controllare che i campi non siano vuoti
-    // se il campo city name o country name è vuoto, blocca la funzione (return).
+    // controlla che i campi obbligatori non siano vuoti
     if (cityName.trim().isEmpty || countryName.trim().isEmpty) {
-      // mostro un avviso per dire che sono campi obbligatori
       setState(() {
-        erroreNomeCitta = "Inserisci il nome della città";
-        erroreNomePaese = "Inserisci il nome del paese";
+        erroreNomeCitta = cityName.trim().isEmpty
+            ? 'Inserisci il nome della città'
+            : '';
+        erroreNomePaese = countryName.trim().isEmpty
+            ? 'Inserisci il nome del paese'
+            : '';
       });
       return;
     }
 
-    // creo nuova città da inserire nell'elenco, prendendo i testi inseriti dall'utente
+    // crea la nuova città con il percorso dell'immagine se selezionata.
+    // imageName contiene il percorso assoluto se è un'immagine dalla galleria,
+    // altrimenti rimane null e la card mostrerà il placeholder grigio
     City newCity = City(
       name: cityName.trim(),
       country: countryName.trim(),
       isVisited: false,
       id: uuid.v4(),
+      imageName: _percorsoImmagine, // 👈 percorso locale o null
     );
 
-    // chiamo la funzione per aggiungere la nuova città
     widget.aggiungiCitta(newCity);
-
-    // chiudo la finestra
     Navigator.of(context).pop();
   }
 
   @override
   void dispose() {
-    // è importante chiamare dispose sui controller quando il widget viene distrutto (cioè quando non è più visibile), per liberare le risorse e evitare problemi di memoria.
     cityNameController.dispose();
     countryNameController.dispose();
     super.dispose();
@@ -62,8 +87,6 @@ class _AddCityState extends State<AddCity> {
 
   @override
   Widget build(BuildContext context) {
-    // Wrap è un widget che permette di avvolgere i suoi figli su più righe.
-    // Lo uso per avvolgere il contenuto della modale, in modo che si adatti quando la tastiera è aperta.
     return Wrap(
       children: [
         Padding(
@@ -71,7 +94,6 @@ class _AddCityState extends State<AddCity> {
             left: 32.0,
             right: 32.0,
             top: 24,
-            // calcolo il padding bottom in modo dinamico, prendendo in considerazione la presenza della tastiera virtuale (viewInsets.bottom) e aggiungendo un margine extra di 48 pixel per evitare che i contenuti siano troppo vicini alla tastiera.
             bottom: MediaQuery.of(context).viewInsets.bottom + 48.0,
           ),
           child: Column(
@@ -79,45 +101,96 @@ class _AddCityState extends State<AddCity> {
             children: [
               Text(
                 'Aggiungi città',
-                // theme.of(context) è un modo per accedere al tema dell'applicazione, e quindi ai colori, ai font, etc. definiti nel tema. In questo caso, prendo lo stile titleLarge del tema, e lo modifico con copyWith per cambiare solo il colore, mantenendo tutte le altre proprietà dello stile originale. In questo modo, si può avere uno stile coerente per tutti i titoli dell'applicazione, e modificarlo facilmente in un unico posto, cambiando il tema dell'applicazione.
                 style: Theme.of(context).textTheme.titleLarge?.copyWith(
-                  // per il colore uso il colore primary del colorScheme, che è il colore principale del tema, e che si adatta bene per i titoli.
                   color: Theme.of(context).colorScheme.primary,
                 ),
               ),
-              TextField(
-                style: const TextStyle(color: Colors.white),
-                // assegno il controller all'input di testo per poter leggere il contenuto digitato dall'utente
-                controller: cityNameController,
-                decoration: InputDecoration(
-                  label: Text('Città'),
-                  border: OutlineInputBorder(),
+
+              // anteprima immagine di copertina selezionata.
+              // se non è stata selezionata nessuna immagine mostra
+              // un placeholder con il bottone per aprire la galleria
+              GestureDetector(
+                onTap: _selezionaImmagine,
+                child: Container(
+                  height: 150,
+                  width: double.infinity,
+                  decoration: BoxDecoration(
+                    color: Colors.grey.shade900,
+                    borderRadius: BorderRadius.circular(8),
+                    border: Border.all(color: Colors.white24),
+                  ),
+                  child: _percorsoImmagine != null
+                      // mostra l'anteprima dell'immagine selezionata
+                      ? ClipRRect(
+                          borderRadius: BorderRadius.circular(8),
+                          child: Image.file(
+                            File(_percorsoImmagine!),
+                            fit: BoxFit.cover,
+                            width: double.infinity,
+                            height: double.infinity,
+                          ),
+                        )
+                      // placeholder con icona e testo se nessuna immagine
+                      : const Column(
+                          mainAxisAlignment: MainAxisAlignment.center,
+                          children: [
+                            Icon(
+                              Icons.add_photo_alternate,
+                              size: 48,
+                              color: Colors.white38,
+                            ),
+                            SizedBox(height: 8),
+                            Text(
+                              'Tocca per aggiungere copertina',
+                              style: TextStyle(
+                                color: Colors.white38,
+                                fontSize: 13,
+                              ),
+                            ),
+                          ],
+                        ),
                 ),
               ),
-              erroreNomeCitta.isNotEmpty
-                  ? Text(
-                      erroreNomeCitta,
-                      style: TextStyle(
-                        color: Theme.of(context).colorScheme.error,
-                      ),
-                    )
-                  : SizedBox.shrink(), // se non c'è errore, mostro un widget vuoto che non occupa spazio
+
+              // bottone per cambiare immagine se già selezionata
+              if (_percorsoImmagine != null)
+                TextButton.icon(
+                  onPressed: _selezionaImmagine,
+                  icon: const Icon(Icons.edit, size: 16),
+                  label: const Text('Cambia immagine'),
+                ),
+
+              // campo nome città
               TextField(
+                controller: cityNameController,
                 style: const TextStyle(color: Colors.white),
-                controller: countryNameController,
-                // keyboardType: TextInputType.phone,
                 decoration: InputDecoration(
-                  label: Text('Paese'),
-                  border: OutlineInputBorder(),
-                  // con errorText posso mostrare un messaggio di errore sotto l'input, che appare solo se c'è un errore (cioè se erroreNomePaese è diverso da stringa vuota).
-                  // L'utente ha un feedback visivo chiaro su cosa deve correggere.
+                  label: const Text('Nome città'),
+                  border: const OutlineInputBorder(),
+                  errorText: erroreNomeCitta.isNotEmpty
+                      ? erroreNomeCitta
+                      : null,
+                ),
+              ),
+
+              // campo nome paese
+              TextField(
+                controller: countryNameController,
+                style: const TextStyle(color: Colors.white),
+                decoration: InputDecoration(
+                  label: const Text('Nome paese'),
+                  border: const OutlineInputBorder(),
                   errorText: erroreNomePaese.isNotEmpty
                       ? erroreNomePaese
                       : null,
                 ),
               ),
-              // SizedBox(height: 24),
-              ElevatedButton(onPressed: submitCity, child: Text('Salva')),
+
+              // bottone per salvare la nuova città
+              ElevatedButton(
+                onPressed: submitCity,
+                child: const Text('Aggiungi città'),
+              ),
             ],
           ),
         ),

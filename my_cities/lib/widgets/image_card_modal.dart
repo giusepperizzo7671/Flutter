@@ -1,194 +1,184 @@
 import 'package:flutter/material.dart';
+import 'package:url_launcher/url_launcher.dart';
 import 'package:my_cities/db_helper.dart';
+import 'package:my_cities/screens/grid_screen.dart';
 
-// modale che mostra tutti i dati di un'immagine importati dall'Excel.
-// permette anche di modificare la nota
-class ImageCardModal extends StatelessWidget {
+// ===========================================================================
+// ImageCardModal — pannello dal basso con tutti i dettagli di una scheda
+// e il campo nota modificabile.
+// ===========================================================================
+
+class ImageCardModal extends StatefulWidget {
   const ImageCardModal({
     super.key,
-    required this.imageName,
-    required this.cityId,
-    required this.dati,
+    required this.scheda,
     required this.onNotaSalvata,
   });
 
-  final String imageName;
-  final String? cityId;
+  final ImmagineGriglia scheda;
+  final void Function(String nota) onNotaSalvata;
 
-  // mappa con tutti i campi: latitudine, longitudine, tipo, destinazione,
-  // orari, ticket, hh, zona, gg, metro_bus, note
-  final Map<String, dynamic> dati;
+  @override
+  State<ImageCardModal> createState() => _ImageCardModalState();
+}
 
-  // callback chiamata dopo il salvataggio della nota,
-  // per aggiornare lo stato della ImageCard parent
-  final void Function(String) onNotaSalvata;
+class _ImageCardModalState extends State<ImageCardModal> {
+  late final TextEditingController _notaController;
+  bool _salvataggio = false;
 
-  // helper sicuro per leggere un campo stringa dalla mappa.
-  // non usa mai ! — restituisce null se il campo è assente o vuoto
-  String? _leggi(String campo) {
-    final v = dati[campo];
-    if (v == null) return null;
-    final s = v.toString().trim();
-    return s.isEmpty ? null : s;
-  }
+  bool get _notaModificata =>
+      _notaController.text.trim() != (widget.scheda.note ?? '').trim();
 
-  // helper: controlla se un campo esiste e non è vuoto
-  bool _haValore(String campo) => _leggi(campo) != null;
+  final DbHelper _dbHelper = DbHelper();
 
-  // helper: riga con icona, etichetta e valore
-  Widget _rigaInfo(IconData icona, String etichetta, String valore) {
-    return Padding(
-      padding: const EdgeInsets.only(bottom: 6),
-      child: Row(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Icon(icona, size: 14, color: Colors.white54),
-          const SizedBox(width: 6),
-          Text(
-            '$etichetta: ',
-            style: const TextStyle(
-              color: Colors.white54,
-              fontSize: 12,
-              fontWeight: FontWeight.bold,
-            ),
-          ),
-          Expanded(
-            child: Text(
-              valore,
-              style: const TextStyle(color: Colors.white70, fontSize: 12),
-            ),
-          ),
-        ],
-      ),
-    );
+  @override
+  void initState() {
+    super.initState();
+    _notaController = TextEditingController(text: widget.scheda.note ?? '');
   }
 
   @override
-  Widget build(BuildContext context) {
-    final controller = TextEditingController(
-      // leggi in modo sicuro la nota senza usare !
-      text: _leggi('note') ?? '',
+  void dispose() {
+    _notaController.dispose();
+    super.dispose();
+  }
+
+  // --------------------------------------------------------------------------
+  // Salvataggio nota
+  // --------------------------------------------------------------------------
+  Future<void> _salvaNota() async {
+    if (widget.scheda.id == null) return;
+    if (!_notaModificata) {
+      Navigator.pop(context);
+      return;
+    }
+
+    setState(() => _salvataggio = true);
+    try {
+      final testo = _notaController.text.trim();
+      await _dbHelper.aggiornaImmagineGriglia(
+        id: widget.scheda.id!,
+        note: testo,
+      );
+      widget.onNotaSalvata(testo);
+      if (mounted) Navigator.pop(context);
+    } catch (e) {
+      print('ERRORE _salvaNota: $e');
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Errore durante il salvataggio della nota'),
+            backgroundColor: Colors.red,
+          ),
+        );
+      }
+    } finally {
+      if (mounted) setState(() => _salvataggio = false);
+    }
+  }
+
+  // --------------------------------------------------------------------------
+  // Apre Google Maps alle coordinate della scheda
+  // --------------------------------------------------------------------------
+  Future<void> _apriMappa() async {
+    final lat = widget.scheda.latitudine;
+    final lng = widget.scheda.longitudine;
+    if (lat == null || lng == null) return;
+
+    final uri = Uri.parse(
+      'https://www.google.com/maps/search/?api=1&query=$lat,$lng',
     );
+    try {
+      await launchUrl(uri, mode: LaunchMode.externalApplication);
+    } catch (e) {
+      print('ERRORE apertura mappa: $e');
+    }
+  }
 
-    // leggi le coordinate in modo sicuro senza cast diretto
-    final latRaw = dati['latitudine'];
-    final lngRaw = dati['longitudine'];
-    final double? latitudine = latRaw is double
-        ? latRaw
-        : double.tryParse(latRaw?.toString() ?? '');
-    final double? longitudine = lngRaw is double
-        ? lngRaw
-        : double.tryParse(lngRaw?.toString() ?? '');
+  // --------------------------------------------------------------------------
+  // Build
+  // --------------------------------------------------------------------------
+  @override
+  Widget build(BuildContext context) {
+    // legge colori dal tema attivo per garantire leggibilità sia in dark che light mode
+    final colorScheme = Theme.of(context).colorScheme;
+    final testoColore = colorScheme.onSurface;
+    final labelColore = colorScheme.primary;
 
-    return Padding(
-      padding: EdgeInsets.only(
-        left: 16,
-        right: 16,
-        top: 16,
-        // aggiunge padding dinamico per la tastiera virtuale
-        bottom: MediaQuery.of(context).viewInsets.bottom + 16,
-      ),
-      child: SingleChildScrollView(
+    return DraggableScrollableSheet(
+      initialChildSize: 0.60,
+      minChildSize: 0.35,
+      maxChildSize: 0.95,
+      expand: false,
+      builder: (ctx, scrollController) => Container(
+        decoration: BoxDecoration(
+          color: colorScheme.surface,
+          borderRadius: const BorderRadius.vertical(top: Radius.circular(20)),
+        ),
         child: Column(
-          mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            // titolo con nome file immagine
-            Text(
-              imageName,
-              style: const TextStyle(
-                fontSize: 16,
-                fontWeight: FontWeight.bold,
-                color: Colors.white,
+            // maniglia
+            Container(
+              width: 40,
+              height: 4,
+              margin: const EdgeInsets.only(top: 12, bottom: 8),
+              decoration: BoxDecoration(
+                color: Colors.grey.shade400,
+                borderRadius: BorderRadius.circular(2),
               ),
             ),
 
-            const SizedBox(height: 12),
-
-            // mostra tutti i campi disponibili importati dall'Excel.
-            // _leggi restituisce sempre una stringa non nulla qui
-            // perché _haValore ha già verificato che il campo esiste
-            if (_haValore('tipo'))
-              _rigaInfo(Icons.category, 'Tipo', _leggi('tipo')!),
-            if (_haValore('destinazione'))
-              _rigaInfo(Icons.place, 'Destinazione', _leggi('destinazione')!),
-            if (latitudine != null && longitudine != null)
-              _rigaInfo(
-                Icons.location_on,
-                'Coordinate',
-                '${latitudine.toStringAsFixed(4)}, ${longitudine.toStringAsFixed(4)}',
-              ),
-            if (_haValore('zona'))
-              _rigaInfo(Icons.map, 'Zona', _leggi('zona')!),
-            if (_haValore('orari'))
-              _rigaInfo(Icons.access_time, 'Orari', _leggi('orari')!),
-            if (_haValore('ticket'))
-              _rigaInfo(Icons.confirmation_number, 'Ticket', _leggi('ticket')!),
-            if (_haValore('hh')) _rigaInfo(Icons.timer, 'HH', _leggi('hh')!),
-            if (_haValore('gg'))
-              _rigaInfo(Icons.calendar_today, 'GG', _leggi('gg')!),
-            if (_haValore('metro_bus'))
-              _rigaInfo(
-                Icons.directions_bus,
-                'Metro/Bus',
-                _leggi('metro_bus')!,
-              ),
-
-            const Divider(color: Colors.white24, height: 24),
-
-            // sezione nota modificabile
-            const Text(
-              'Note',
-              style: TextStyle(
-                color: Colors.white70,
-                fontSize: 13,
-                fontWeight: FontWeight.bold,
+            // intestazione
+            Padding(
+              padding: const EdgeInsets.fromLTRB(20, 0, 12, 0),
+              child: Row(
+                children: [
+                  Expanded(
+                    child: Text(
+                      widget.scheda.destinazione ?? widget.scheda.immagine,
+                      style: TextStyle(
+                        fontSize: 17,
+                        fontWeight: FontWeight.bold,
+                        color: testoColore,
+                      ),
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                    ),
+                  ),
+                  _salvataggio
+                      ? const Padding(
+                          padding: EdgeInsets.all(12),
+                          child: SizedBox(
+                            width: 20,
+                            height: 20,
+                            child: CircularProgressIndicator(strokeWidth: 2),
+                          ),
+                        )
+                      : TextButton(
+                          onPressed: _notaModificata ? _salvaNota : null,
+                          child: const Text('Salva'),
+                        ),
+                ],
               ),
             ),
 
-            const SizedBox(height: 8),
+            Divider(height: 1, color: colorScheme.outlineVariant),
 
-            // campo testo multi-riga per la nota
-            TextField(
-              controller: controller,
-              style: const TextStyle(color: Colors.white),
-              maxLines: null,
-              minLines: 3,
-              keyboardType: TextInputType.multiline,
-              decoration: const InputDecoration(
-                hintText: 'Scrivi una nota...',
-                hintStyle: TextStyle(color: Colors.white54),
-                filled: true,
-                fillColor: Colors.black,
-                border: OutlineInputBorder(),
-                alignLabelWithHint: true,
-              ),
-            ),
-
-            const SizedBox(height: 12),
-
-            // bottone salva: aggiorna la nota nel database e chiude la modale
-            SizedBox(
-              width: double.infinity,
-              child: ElevatedButton(
-                onPressed: () async {
-                  final dbHelper = DbHelper();
-                  // salva nel db usando il metodo appropriato in base
-                  // alla presenza di cityId
-                  if (cityId != null) {
-                    await dbHelper.aggiornaNota(
-                      cityId!,
-                      imageName,
-                      controller.text,
-                    );
-                  } else {
-                    await dbHelper.salvaNota(imageName, controller.text);
-                  }
-                  // notifica il widget parent del nuovo testo salvato
-                  onNotaSalvata(controller.text);
-                  Navigator.pop(context);
-                },
-                child: const Text('Salva'),
+            // corpo scrollabile
+            Expanded(
+              child: ListView(
+                controller: scrollController,
+                padding: EdgeInsets.only(
+                  left: 20,
+                  right: 20,
+                  top: 16,
+                  bottom: MediaQuery.of(context).viewInsets.bottom + 24,
+                ),
+                children: [
+                  _buildSezioneMetadati(testoColore, labelColore),
+                  const SizedBox(height: 24),
+                  _buildSezioneNota(testoColore),
+                ],
               ),
             ),
           ],
@@ -196,4 +186,218 @@ class ImageCardModal extends StatelessWidget {
       ),
     );
   }
+
+  // --------------------------------------------------------------------------
+  // Sezione metadati
+  // --------------------------------------------------------------------------
+  Widget _buildSezioneMetadati(Color testoColore, Color labelColore) {
+    final lat = widget.scheda.latitudine;
+    final lng = widget.scheda.longitudine;
+    final haCoord = lat != null && lng != null;
+
+    final campi = <_Campo>[
+      if (_v(widget.scheda.tipo))
+        _Campo(Icons.category_outlined, 'Tipo', widget.scheda.tipo!),
+      if (_v(widget.scheda.zona))
+        _Campo(Icons.map_outlined, 'Zona', widget.scheda.zona!),
+      if (_v(widget.scheda.destinazione))
+        _Campo(
+          Icons.place_outlined,
+          'Destinazione',
+          widget.scheda.destinazione!,
+        ),
+      if (_v(widget.scheda.orari))
+        _Campo(Icons.access_time, 'Orari', widget.scheda.orari!),
+      if (_v(widget.scheda.ticket))
+        _Campo(
+          Icons.confirmation_number_outlined,
+          'Ticket',
+          widget.scheda.ticket!,
+        ),
+      if (_v(widget.scheda.hh))
+        _Campo(Icons.timer_outlined, 'Durata (HH)', widget.scheda.hh!),
+      if (_v(widget.scheda.gg))
+        _Campo(Icons.calendar_today_outlined, 'Giorni (GG)', widget.scheda.gg!),
+      if (_v(widget.scheda.metroBus))
+        _Campo(
+          Icons.directions_bus_outlined,
+          'Metro/Bus',
+          widget.scheda.metroBus!,
+        ),
+    ];
+
+    if (campi.isEmpty && !haCoord) {
+      return Text(
+        'Nessun metadato disponibile per questa scheda.',
+        style: TextStyle(color: testoColore.withOpacity(0.5), fontSize: 13),
+      );
+    }
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(
+          'Dettagli',
+          style: TextStyle(
+            fontSize: 13,
+            fontWeight: FontWeight.w600,
+            color: labelColore,
+          ),
+        ),
+        const SizedBox(height: 10),
+
+        // riga coordinate con bottone apri mappa
+        if (haCoord) _buildRigaCoordinate(lat!, lng!, testoColore),
+
+        ...campi.map((c) => _buildRiga(c, testoColore)),
+      ],
+    );
+  }
+
+  // riga speciale per le coordinate con bottone "Apri Mappa"
+  Widget _buildRigaCoordinate(double lat, double lng, Color testoColore) {
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 5),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.center,
+        children: [
+          Icon(Icons.location_on_outlined, size: 16, color: Colors.blue),
+          const SizedBox(width: 8),
+          SizedBox(
+            width: 110,
+            child: Text(
+              'Coordinate',
+              style: TextStyle(
+                fontWeight: FontWeight.w600,
+                fontSize: 13,
+                color: Colors.blue,
+              ),
+            ),
+          ),
+          Expanded(
+            child: Text(
+              '${lat.toStringAsFixed(5)}, ${lng.toStringAsFixed(5)}',
+              style: TextStyle(fontSize: 12, color: testoColore),
+            ),
+          ),
+          // bottone che apre Google Maps
+          InkWell(
+            onTap: _apriMappa,
+            borderRadius: BorderRadius.circular(6),
+            child: Container(
+              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+              decoration: BoxDecoration(
+                color: Colors.blue,
+                borderRadius: BorderRadius.circular(6),
+              ),
+              child: const Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Icon(Icons.map, color: Colors.white, size: 13),
+                  SizedBox(width: 4),
+                  Text(
+                    'Mappa',
+                    style: TextStyle(color: Colors.white, fontSize: 12),
+                  ),
+                ],
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  // riga metadato standard: icona | label | valore
+  Widget _buildRiga(_Campo campo, Color testoColore) {
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 5),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Icon(campo.icona, size: 16, color: Colors.blueGrey),
+          const SizedBox(width: 8),
+          SizedBox(
+            width: 110,
+            child: Text(
+              campo.label,
+              style: const TextStyle(
+                fontWeight: FontWeight.w600,
+                fontSize: 13,
+                color: Colors.blueGrey,
+              ),
+            ),
+          ),
+          Expanded(
+            child: Text(
+              campo.valore,
+              // colore esplicito dal tema — risolve il bug "testo invisibile"
+              style: TextStyle(fontSize: 13, color: testoColore),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  // --------------------------------------------------------------------------
+  // Sezione nota
+  // --------------------------------------------------------------------------
+  Widget _buildSezioneNota(Color testoColore) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(
+          'Note',
+          style: TextStyle(
+            fontSize: 13,
+            fontWeight: FontWeight.w600,
+            color: Theme.of(context).colorScheme.primary,
+          ),
+        ),
+        const SizedBox(height: 10),
+        TextField(
+          controller: _notaController,
+          maxLines: 5,
+          minLines: 3,
+          textCapitalization: TextCapitalization.sentences,
+          style: TextStyle(fontSize: 14, color: testoColore),
+          decoration: InputDecoration(
+            hintText: 'Scrivi una nota per questa scheda...',
+            hintStyle: TextStyle(color: testoColore.withOpacity(0.4)),
+            border: OutlineInputBorder(borderRadius: BorderRadius.circular(10)),
+            filled: true,
+            fillColor: Theme.of(context).colorScheme.surfaceVariant,
+          ),
+          onChanged: (_) => setState(() {}),
+        ),
+        const SizedBox(height: 12),
+        SizedBox(
+          width: double.infinity,
+          child: FilledButton(
+            onPressed: _notaModificata && !_salvataggio ? _salvaNota : null,
+            child: _salvataggio
+                ? const SizedBox(
+                    height: 18,
+                    width: 18,
+                    child: CircularProgressIndicator(
+                      strokeWidth: 2,
+                      color: Colors.white,
+                    ),
+                  )
+                : const Text('Salva nota'),
+          ),
+        ),
+      ],
+    );
+  }
+
+  bool _v(String? s) => s != null && s.isNotEmpty;
+}
+
+class _Campo {
+  const _Campo(this.icona, this.label, this.valore);
+  final IconData icona;
+  final String label;
+  final String valore;
 }

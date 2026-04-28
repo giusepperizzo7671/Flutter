@@ -1,19 +1,127 @@
-import 'package:flutter/material.dart';
-import 'package:my_cities/models/city.dart';
-import 'package:my_cities/data/cities.dart';
-import 'package:my_cities/db_helper.dart';
-import 'package:my_cities/widgets/image_card.dart';
-import 'package:my_cities/utils/csv_converter.dart';
-import 'package:file_picker/file_picker.dart';
-import 'package:csv/csv.dart';
-import 'package:image_picker/image_picker.dart';
 import 'dart:io';
+import 'package:flutter/material.dart';
+import 'package:file_picker/file_picker.dart';
+import 'package:image_picker/image_picker.dart';
+import 'package:my_cities/models/city.dart';
+import 'package:my_cities/db_helper.dart';
+import 'package:my_cities/utils/csv_converter.dart';
+import 'package:my_cities/widgets/image_card.dart';
 
+// ---------------------------------------------------------------------------
+// ImmagineGriglia — modello che rappresenta una singola scheda della griglia.
+//
+// Analogia: ogni ImmagineGriglia è come una scheda in un archivio fisico.
+// Ha un numero univoco (id), appartiene a una città (cityId) e contiene
+// tutti i metadati. Il campo isVisitata è il bollino "già visto" che puoi
+// attaccare sul fronte: la scheda diventa semitrasparente per indicare che
+// il posto è già stato visitato.
+// ---------------------------------------------------------------------------
+class ImmagineGriglia {
+  final int? id;
+  final String cityId;
+  final String immagine;
+  final String? percorso;
+  final double? latitudine;
+  final double? longitudine;
+  final String? tipo;
+  final String? destinazione;
+  final String? orari;
+  final String? ticket;
+  final String? hh;
+  final String? zona;
+  final String? gg;
+  final String? metroBus;
+  final String? note;
+  final bool isVisitata; // true → card semitrasparente (posto già visitato)
+
+  const ImmagineGriglia({
+    this.id,
+    required this.cityId,
+    required this.immagine,
+    this.percorso,
+    this.latitudine,
+    this.longitudine,
+    this.tipo,
+    this.destinazione,
+    this.orari,
+    this.ticket,
+    this.hh,
+    this.zona,
+    this.gg,
+    this.metroBus,
+    this.note,
+    this.isVisitata = false,
+  });
+
+  // costruisce un ImmagineGriglia dalla mappa restituita da SQLite.
+  // latitudine/longitudine usano toDouble() perché SQLite può restituirle come int.
+  factory ImmagineGriglia.fromMap(Map<String, dynamic> map) {
+    return ImmagineGriglia(
+      id: map['id'] as int?,
+      cityId: map['city_id'] as String,
+      immagine: map['immagine'] as String,
+      percorso: map['percorso'] as String?,
+      latitudine: (map['latitudine'] as num?)?.toDouble(),
+      longitudine: (map['longitudine'] as num?)?.toDouble(),
+      tipo: map['tipo'] as String?,
+      destinazione: map['destinazione'] as String?,
+      orari: map['orari'] as String?,
+      ticket: map['ticket'] as String?,
+      hh: map['hh'] as String?,
+      zona: map['zona'] as String?,
+      gg: map['gg'] as String?,
+      metroBus: map['metro_bus'] as String?,
+      note: map['note'] as String?,
+      isVisitata: (map['is_visitata'] as int? ?? 0) == 1,
+    );
+  }
+
+  // crea una copia con i campi specificati modificati
+  ImmagineGriglia copyWith({
+    int? id,
+    String? cityId,
+    String? immagine,
+    String? percorso,
+    double? latitudine,
+    double? longitudine,
+    String? tipo,
+    String? destinazione,
+    String? orari,
+    String? ticket,
+    String? hh,
+    String? zona,
+    String? gg,
+    String? metroBus,
+    String? note,
+    bool? isVisitata,
+  }) {
+    return ImmagineGriglia(
+      id: id ?? this.id,
+      cityId: cityId ?? this.cityId,
+      immagine: immagine ?? this.immagine,
+      percorso: percorso ?? this.percorso,
+      latitudine: latitudine ?? this.latitudine,
+      longitudine: longitudine ?? this.longitudine,
+      tipo: tipo ?? this.tipo,
+      destinazione: destinazione ?? this.destinazione,
+      orari: orari ?? this.orari,
+      ticket: ticket ?? this.ticket,
+      hh: hh ?? this.hh,
+      zona: zona ?? this.zona,
+      gg: gg ?? this.gg,
+      metroBus: metroBus ?? this.metroBus,
+      note: note ?? this.note,
+      isVisitata: isVisitata ?? this.isVisitata,
+    );
+  }
+}
+
+// ---------------------------------------------------------------------------
+// GridScreen — schermata principale della griglia immagini per una città.
+// ---------------------------------------------------------------------------
 class GridScreen extends StatefulWidget {
   const GridScreen({super.key, this.city});
 
-  // city è nullable: se null mostra tutte le immagini di tutte le città,
-  // altrimenti mostra solo le immagini della città specifica con i dati dal db
   final City? city;
 
   @override
@@ -21,313 +129,330 @@ class GridScreen extends StatefulWidget {
 }
 
 class _GridScreenState extends State<GridScreen> {
+  List<ImmagineGriglia> _schede = [];
+  String? _messaggioImport;
+  bool _caricamento = false;
+
+  // filtri attivi — null significa "nessun filtro" (mostra tutti)
+  String? _filtroTipo;
+  String? _filtroZona;
+
+  // ricava i valori unici di tipo e zona dalle schede caricate,
+  // ordinati alfabeticamente. Analogia: l'indice in fondo a un libro —
+  // si costruisce automaticamente dai contenuti presenti.
+  List<String> get _tipiDisponibili =>
+      _schede
+          .map((s) => s.tipo)
+          .whereType<String>()
+          .where((t) => t.isNotEmpty)
+          .toSet()
+          .toList()
+        ..sort();
+
+  List<String> get _zoneDisponibili =>
+      _schede
+          .map((s) => s.zona)
+          .whereType<String>()
+          .where((z) => z.isNotEmpty)
+          .toSet()
+          .toList()
+        ..sort();
+
+  // schede filtrate: applica tipo e zona in sequenza
+  List<ImmagineGriglia> get _schedeFiltrate {
+    var lista = _schede;
+    if (_filtroTipo != null) {
+      lista = lista.where((s) => s.tipo == _filtroTipo).toList();
+    }
+    if (_filtroZona != null) {
+      lista = lista.where((s) => s.zona == _filtroZona).toList();
+    }
+    return lista;
+  }
+
   final DbHelper _dbHelper = DbHelper();
   final ImagePicker _picker = ImagePicker();
-
-  // lista delle immagini con i relativi dati caricati dal database.
-  // usata solo quando si apre GridScreen da una card specifica
-  List<Map<String, dynamic>> _immaginiDaDb = [];
-
-  // messaggio di stato mostrato all'utente dopo importazione o aggiunta foto
-  String _messaggioImport = '';
-
-  // indica se stiamo caricando i dati dal db
-  bool _loading = true;
 
   @override
   void initState() {
     super.initState();
-    // carica i dati dal database se è stata passata una città specifica.
-    // altrimenti non serve caricare nulla, usiamo cities.dart
-    if (widget.city != null) {
-      _caricaImmaginiDaDb();
-    } else {
-      _loading = false;
-    }
+    _caricaSchedeDaDb();
   }
 
-  // carica tutte le immagini con i dati salvati per questa città dal database
-  Future<void> _caricaImmaginiDaDb() async {
+  Future<void> _caricaSchedeDaDb() async {
+    setState(() => _caricamento = true);
     try {
-      final immagini = await _dbHelper.leggiImmaginiCitta(widget.city!.id);
+      final List<Map<String, dynamic>> righe = widget.city != null
+          ? await _dbHelper.getImmaginiGriglia(widget.city!.id)
+          : await _dbHelper.getTutteImmaginiGriglia();
       setState(() {
-        _immaginiDaDb = immagini;
-        _loading = false;
+        _schede = righe.map(ImmagineGriglia.fromMap).toList();
       });
-    } catch (e, stack) {
-      print('ERRORE _caricaImmaginiDaDb: $e');
-      print('STACK: $stack');
-      setState(() => _loading = false);
+    } catch (e) {
+      _mostraSnackbar('Errore caricamento: $e', errore: true);
+    } finally {
+      setState(() => _caricamento = false);
     }
   }
 
-  // apre la galleria del telefono e permette di selezionare più immagini.
-  // i percorsi assoluti vengono salvati nel database collegati alla città.
-  // il percorso viene usato sia come chiave immagine che come percorso locale,
-  // così ImageCard._buildImmagine riconosce che è un file locale (inizia con /)
+  // ---------------------------------------------------------------------------
+  // Toggle visitata / non visitata — inverte lo stato e salva nel DB
+  // ---------------------------------------------------------------------------
+  Future<void> _toggleVisitata(ImmagineGriglia scheda) async {
+    if (scheda.id == null) return;
+    final nuovoStato = !scheda.isVisitata;
+    try {
+      await _dbHelper.aggiornaIsVisitataScheda(scheda.id!, nuovoStato);
+      setState(() {
+        final i = _schede.indexWhere((s) => s.id == scheda.id);
+        if (i != -1) _schede[i] = _schede[i].copyWith(isVisitata: nuovoStato);
+      });
+    } catch (e) {
+      _mostraSnackbar('Errore: $e', errore: true);
+    }
+  }
+
+  // ---------------------------------------------------------------------------
+  // Cancellazione singola scheda
+  // ---------------------------------------------------------------------------
+  Future<void> _eliminaScheda(ImmagineGriglia scheda) async {
+    if (scheda.id == null) return;
+
+    final conferma = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Text(
+          'Elimina scheda',
+          style: TextStyle(color: Colors.white),
+        ),
+        content: Text(
+          'Vuoi eliminare "${scheda.destinazione ?? scheda.immagine}"?\n'
+          'Questa azione non può essere annullata.',
+          style: const TextStyle(color: Colors.white70),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx, false),
+            child: const Text('Annulla'),
+          ),
+          TextButton(
+            onPressed: () => Navigator.pop(ctx, true),
+            style: TextButton.styleFrom(foregroundColor: Colors.red),
+            child: const Text('Elimina'),
+          ),
+        ],
+      ),
+    );
+
+    if (conferma != true) return;
+
+    try {
+      await _dbHelper.eliminaImmagineGriglia(scheda.id!);
+      setState(() => _schede.removeWhere((s) => s.id == scheda.id));
+      _mostraSnackbar('Scheda eliminata');
+    } catch (e) {
+      _mostraSnackbar('Errore eliminazione: $e', errore: true);
+    }
+  }
+
+  // ---------------------------------------------------------------------------
+  // Import dalla galleria
+  // ---------------------------------------------------------------------------
   Future<void> _importaDaGalleria() async {
     if (widget.city == null) return;
+    final List<XFile> foto = await _picker.pickMultiImage();
+    if (foto.isEmpty) return;
 
-    try {
-      // pickMultiImage apre la galleria e permette selezione multipla
-      final List<XFile> immaginiSelezionate = await _picker.pickMultiImage();
-      if (immaginiSelezionate.isEmpty) return;
+    setState(() {
+      _caricamento = true;
+      _messaggioImport = 'Importazione galleria in corso...';
+    });
 
-      int aggiunte = 0;
-      for (final xfile in immaginiSelezionate) {
-        // salva il percorso assoluto nel database collegato alla città corrente
-        await _dbHelper.salvaImmagineLocale(
+    int importate = 0;
+    for (final f in foto) {
+      try {
+        await _dbHelper.salvaImmagineGriglia(
           cityId: widget.city!.id,
-          percorso: xfile.path,
+          immagine: f.name,
+          percorso: f.path,
         );
-        aggiunte++;
+        importate++;
+      } catch (e) {
+        print('ERRORE foto ${f.name}: $e');
       }
-
-      // ricarica la griglia con le nuove immagini
-      await _caricaImmaginiDaDb();
-
-      setState(() {
-        _messaggioImport = '$aggiunte foto aggiunte per ${widget.city!.name}';
-      });
-    } catch (e, stack) {
-      print('ERRORE _importaDaGalleria: $e');
-      print('STACK: $stack');
-      setState(() => _messaggioImport = 'Errore galleria: $e');
     }
+
+    await _caricaSchedeDaDb();
+    setState(() {
+      _caricamento = false;
+      _messaggioImport = '$importate foto importate da galleria';
+    });
   }
 
-  // helper sicuro per leggere il valore di una cella CSV.
-  // controlla che la colonna esista e che il valore non sia vuoto.
-  // non usa mai l'operatore ! — restituisce null in caso di qualsiasi problema
-  String? _leggiCella(List<dynamic> riga, int col) {
-    try {
-      if (col >= riga.length) return null;
-      final v = riga[col];
-      if (v == null) return null;
-      final s = v.toString().trim();
-      return s.isEmpty ? null : s;
-    } catch (_) {
-      return null;
-    }
-  }
-
-  // importa i dati da un file CSV al percorso indicato.
-  // separatore: ;
-  // struttura colonne:
-  // 0:  Immagine
-  // 1:  Coordinate (formato "lat;lng" con punto e virgola)
-  // 2:  TIPO
-  // 3:  DESTINAZIONE
-  // 4:  ORARI
-  // 5:  TICKET
-  // 6:  HH
-  // 7:  ZONA
-  // 8:  GG
-  // 9:  METRO-BUS
-  // 10: NOTE
-  // 11: PERCORSO (opzionale: percorso assoluto file locale dalla galleria)
-  Future<void> _importaCsvDaPercorso(String percorso) async {
-    try {
-      final file = File(percorso);
-
-      if (!await file.exists()) {
-        setState(() => _messaggioImport = 'Errore: file non trovato');
-        return;
-      }
-
-      // legge il contenuto e normalizza i fine riga.
-      // gestisce sia Windows (\r\n) che Unix (\n)
-      final contenuto = await file.readAsString();
-      final contenutoNormalizzato = contenuto
-          .replaceAll('\r\n', '\n')
-          .replaceAll('\r', '\n');
-
-      // usa ; come separatore per evitare conflitti con le virgole
-      // nei campi come "Bus 6, 9, 30" o nelle note
-      final righe = const CsvToListConverter().convert(
-        contenutoNormalizzato,
-        fieldDelimiter: ';',
-        eol: '\n',
-      );
-
-      // controlla che ci siano almeno 2 righe (intestazione + 1 dato)
-      if (righe.length < 2) {
-        setState(() => _messaggioImport = 'Errore: nessun dato nel file');
-        return;
-      }
-
-      int righeImportate = 0;
-
-      // scorre le righe saltando la prima (intestazioni)
-      for (int i = 1; i < righe.length; i++) {
-        try {
-          final riga = righe[i];
-
-          // colonna 0: nome immagine — obbligatorio, salta se mancante
-          final immagine = _leggiCella(riga, 0);
-          if (immagine == null) continue;
-
-          // colonna 1: coordinate in formato "lat;lng".
-          // split su ; divide latitudine e longitudine
-          double? lat;
-          double? lng;
-          final coordStr = _leggiCella(riga, 1);
-          if (coordStr != null) {
-            final parti = coordStr.split(';');
-            if (parti.length == 2) {
-              lat = double.tryParse(parti[0].trim());
-              lng = double.tryParse(parti[1].trim());
-            }
-          }
-
-          // salva nel database — tutti i campi opzionali possono essere null
-          await _dbHelper.salvaImmagineGriglia(
-            cityId: widget.city!.id,
-            immagine: immagine,
-            percorso: _leggiCella(riga, 11),
-            latitudine: lat,
-            longitudine: lng,
-            tipo: _leggiCella(riga, 2),
-            destinazione: _leggiCella(riga, 3),
-            orari: _leggiCella(riga, 4),
-            ticket: _leggiCella(riga, 5),
-            hh: _leggiCella(riga, 6),
-            zona: _leggiCella(riga, 7),
-            gg: _leggiCella(riga, 8),
-            metroBus: _leggiCella(riga, 9),
-            note: _leggiCella(riga, 10),
-          );
-
-          righeImportate++;
-        } catch (e, stack) {
-          // in caso di errore su una singola riga, stampa il dettaglio
-          // e continua con la riga successiva senza bloccare tutto
-          print('ERRORE riga $i: $e');
-          print('STACK riga $i: $stack');
-          continue;
-        }
-      }
-
-      // ricarica le immagini dal database dopo l'importazione
-      await _caricaImmaginiDaDb();
-
-      setState(() {
-        _messaggioImport = righeImportate > 0
-            ? '$righeImportate schede importate per ${widget.city!.name}'
-            : 'Nessuna riga valida trovata nel file';
-      });
-    } catch (e, stack) {
-      print('ERRORE _importaCsvDaPercorso: $e');
-      print('STACK: $stack');
-      setState(() => _messaggioImport = 'Errore importazione: $e');
-    }
-  }
-
-  // apre il selettore per scegliere un file CSV già pronto
-  // e lo importa direttamente nell'app
+  // ---------------------------------------------------------------------------
+  // Import da CSV
+  // ---------------------------------------------------------------------------
   Future<void> _importaCsv() async {
     if (widget.city == null) return;
-
     final risultato = await FilePicker.platform.pickFiles(
       type: FileType.custom,
       allowedExtensions: ['csv'],
     );
-
-    if (risultato == null) return;
-    if (risultato.files.isEmpty) return;
-
+    if (risultato == null || risultato.files.isEmpty) return;
     final percorso = risultato.files.single.path;
     if (percorso == null || percorso.isEmpty) return;
-
-    await _importaCsvDaPercorso(percorso);
+    await _importaDaPercorso(percorso);
   }
 
-  // apre il selettore per scegliere un file Excel (.xlsx),
-  // lo converte automaticamente in CSV con ; come separatore
-  // tramite CsvConverter, e poi lo importa nell'app.
-  // l'utente non deve fare nessuna conversione manuale
-  Future<void> _convertiEImporta() async {
+  // ---------------------------------------------------------------------------
+  // Import da Excel (.xlsx)
+  // ---------------------------------------------------------------------------
+  Future<void> _importaExcel() async {
     if (widget.city == null) return;
-
     final risultato = await FilePicker.platform.pickFiles(
       type: FileType.custom,
       allowedExtensions: ['xlsx'],
     );
-
-    if (risultato == null) return;
-    if (risultato.files.isEmpty) return;
-
+    if (risultato == null || risultato.files.isEmpty) return;
     final percorsoXlsx = risultato.files.single.path;
     if (percorsoXlsx == null || percorsoXlsx.isEmpty) return;
 
-    // mostra messaggio di attesa durante la conversione
-    setState(() => _messaggioImport = 'Conversione Excel in corso...');
+    setState(() {
+      _caricamento = true;
+      _messaggioImport = 'Conversione Excel in corso...';
+    });
 
-    // converte il file Excel in CSV usando CsvConverter
     final percorsoCsv = await CsvConverter.converti(percorsoXlsx);
-
     if (percorsoCsv == null) {
-      setState(() => _messaggioImport = 'Errore: conversione Excel fallita');
+      setState(() {
+        _caricamento = false;
+        _messaggioImport = 'Errore: conversione Excel fallita';
+      });
       return;
     }
-
-    // importa il CSV appena convertito
-    await _importaCsvDaPercorso(percorsoCsv);
+    await _importaDaPercorso(percorsoCsv);
   }
 
-  // mostra un menu con le tre opzioni di aggiunta immagini:
-  // dalla galleria, da CSV già pronto, oppure da Excel con conversione automatica
+  // ---------------------------------------------------------------------------
+  // Nucleo import — AGGIUNGE senza cancellare le schede esistenti
+  // ---------------------------------------------------------------------------
+  Future<void> _importaDaPercorso(String percorso) async {
+    setState(() {
+      _caricamento = true;
+      _messaggioImport = 'Importazione in corso...';
+    });
+
+    try {
+      final righe = (await File(percorso).readAsString()).split('\n');
+      int importate = 0;
+
+      for (int i = 1; i < righe.length; i++) {
+        final riga = righe[i].trim();
+        if (riga.isEmpty) continue;
+        final celle = riga.split(';');
+
+        String? leggi(int col) {
+          if (col >= celle.length) return null;
+          final v = celle[col].trim();
+          return v.isEmpty ? null : v;
+        }
+
+        final immagine = leggi(0);
+        if (immagine == null) continue;
+
+        double? lat, lng;
+        final coordStr = leggi(1);
+        if (coordStr != null) {
+          // le coordinate usano la virgola come separatore, come Google Maps:
+          // "46.11299, 12.19358" → split su ',' → [lat, lng]
+          // la virgola non crea conflitti perché il CSV usa ; come separatore colonne
+          final parti = coordStr.split(',');
+          if (parti.length == 2) {
+            lat = double.tryParse(parti[0].trim());
+            lng = double.tryParse(parti[1].trim());
+          }
+        }
+
+        try {
+          await _dbHelper.salvaImmagineGriglia(
+            cityId: widget.city!.id,
+            immagine: immagine,
+            percorso: leggi(11),
+            latitudine: lat,
+            longitudine: lng,
+            tipo: leggi(2),
+            destinazione: leggi(3),
+            orari: leggi(4),
+            ticket: leggi(5),
+            hh: leggi(6),
+            zona: leggi(7),
+            gg: leggi(8),
+            metroBus: leggi(9),
+            note: leggi(10),
+          );
+          importate++;
+        } catch (e, stack) {
+          print('ERRORE riga $i: $e\n$stack');
+        }
+      }
+
+      await _caricaSchedeDaDb();
+      setState(() {
+        _messaggioImport = importate > 0
+            ? '$importate schede aggiunte per ${widget.city?.name ?? "tutte le città"}'
+            : 'Nessuna riga valida trovata nel file';
+      });
+    } catch (e, stack) {
+      print('ERRORE _importaDaPercorso: $e\n$stack');
+      setState(() => _messaggioImport = 'Errore importazione: $e');
+    } finally {
+      setState(() => _caricamento = false);
+    }
+  }
+
+  // ---------------------------------------------------------------------------
+  // Menu aggiunta
+  // ---------------------------------------------------------------------------
   void _mostraMenuAggiunta() {
     showModalBottomSheet(
       context: context,
-      builder: (context) => SafeArea(
+      builder: (ctx) => SafeArea(
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
             const Padding(
               padding: EdgeInsets.all(16),
               child: Text(
-                'Aggiungi immagini',
+                'Aggiungi schede',
                 style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
               ),
             ),
-
-            // opzione 1: importa foto dalla galleria del telefono
             ListTile(
               leading: const Icon(Icons.photo_library, color: Colors.blue),
               title: const Text('Importa dalla galleria'),
-              subtitle: const Text('Seleziona una o più foto dal telefono'),
               onTap: () {
-                Navigator.pop(context);
+                Navigator.pop(ctx);
                 _importaDaGalleria();
               },
             ),
-
-            // opzione 2: importa da file CSV già pronto con ; come separatore
             ListTile(
               leading: const Icon(Icons.upload_file, color: Colors.green),
               title: const Text('Importa da CSV'),
               subtitle: const Text('File CSV con ; come separatore'),
               onTap: () {
-                Navigator.pop(context);
+                Navigator.pop(ctx);
                 _importaCsv();
               },
             ),
-
-            // opzione 3: converti Excel in CSV e importa automaticamente.
-            // l'utente sceglie il file .xlsx e l'app fa tutto il resto
             ListTile(
               leading: const Icon(Icons.table_chart, color: Colors.orange),
               title: const Text('Importa da Excel'),
-              subtitle: const Text(
-                'Converte automaticamente il file .xlsx e importa',
-              ),
+              subtitle: const Text('Converte automaticamente il file .xlsx'),
               onTap: () {
-                Navigator.pop(context);
-                _convertiEImporta();
+                Navigator.pop(ctx);
+                _importaExcel();
               },
             ),
-
             const SizedBox(height: 8),
           ],
         ),
@@ -335,146 +460,288 @@ class _GridScreenState extends State<GridScreen> {
     );
   }
 
+  void _mostraSnackbar(String messaggio, {bool errore = false}) {
+    if (!mounted) return;
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text(messaggio),
+        backgroundColor: errore ? Colors.red : Colors.green,
+      ),
+    );
+  }
+
+  // ---------------------------------------------------------------------------
+  // Build
+  // ---------------------------------------------------------------------------
   @override
   Widget build(BuildContext context) {
-    // costruisce la lista delle immagini da mostrare nella griglia.
-    // se è stata passata una città specifica, usa i dati dal database.
-    // altrimenti raccoglie tutte le immagini di tutte le città
-    late final List<String> images;
-
-    if (widget.city != null) {
-      if (_immaginiDaDb.isNotEmpty) {
-        // usa percorso se disponibile, altrimenti usa immagine.
-        // percorso ha priorità perché indica un file locale dalla galleria
-        images = _immaginiDaDb
-            .map((r) {
-              final percorso = r['percorso'];
-              final immagine = r['immagine'];
-              final v = (percorso != null && percorso.toString().isNotEmpty)
-                  ? percorso
-                  : immagine;
-              return v != null ? v.toString() : '';
-            })
-            .where((s) => s.isNotEmpty)
-            .toList();
-      } else if (widget.city!.images.isNotEmpty) {
-        // fallback: usa le immagini del modello City se il db è vuoto
-        images = widget.city!.images;
-      } else if (widget.city!.imageName != null) {
-        // fallback: usa l'immagine principale della card
-        images = [widget.city!.imageName!];
-      } else {
-        images = [];
-      }
-    } else {
-      // se non è stata passata nessuna città, raccoglie tutte le immagini
-      // di tutte le città usando expand, che appiattisce le liste in una sola
-      images = cities
-          .expand<String>(
-            (c) => c.images.isNotEmpty
-                ? c.images
-                : (c.imageName != null ? [c.imageName!] : <String>[]),
-          )
-          .toList();
-    }
-
     return Scaffold(
       appBar: AppBar(
         title: Text(
-          widget.city != null ? 'Foto di ${widget.city!.name}' : 'Galleria',
+          widget.city != null
+              ? 'Schede di ${widget.city!.name}'
+              : 'Tutte le schede',
         ),
         actions: [
-          // bottone aggiunta visibile solo nella griglia di una città specifica,
-          // non nella galleria generale
-          if (widget.city != null)
-            IconButton(
-              icon: const Icon(Icons.add_photo_alternate),
-              tooltip: 'Aggiungi immagini',
-              onPressed: _mostraMenuAggiunta,
-            ),
+          IconButton(
+            icon: const Icon(Icons.add_photo_alternate),
+            tooltip: 'Aggiungi schede',
+            onPressed: widget.city != null ? _mostraMenuAggiunta : null,
+          ),
         ],
       ),
-      body: _loading
-          // indicatore di caricamento mentre si leggono i dati dal db
-          ? const Center(child: CircularProgressIndicator())
-          : Column(
-              children: [
-                // banner di stato importazione/aggiunta.
-                // verde se è andata bene, rosso se c'è stato un errore
-                if (_messaggioImport.isNotEmpty)
-                  Container(
-                    width: double.infinity,
-                    padding: const EdgeInsets.all(8),
-                    color: _messaggioImport.contains('Errore')
-                        ? Colors.red.withOpacity(0.2)
-                        : Colors.green.withOpacity(0.2),
+      body: Column(
+        children: [
+          if (_messaggioImport != null)
+            Container(
+              width: double.infinity,
+              color: Colors.green.shade50,
+              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+              child: Row(
+                children: [
+                  const Icon(Icons.info_outline, color: Colors.green, size: 18),
+                  const SizedBox(width: 8),
+                  Expanded(
                     child: Text(
-                      _messaggioImport,
+                      _messaggioImport!,
+                      style: const TextStyle(color: Colors.green),
+                    ),
+                  ),
+                  IconButton(
+                    icon: const Icon(Icons.close, size: 16),
+                    padding: EdgeInsets.zero,
+                    constraints: const BoxConstraints(),
+                    onPressed: () => setState(() => _messaggioImport = null),
+                  ),
+                ],
+              ),
+            ),
+
+          if (_caricamento) const LinearProgressIndicator(),
+
+          // ---------- barra filtri tipo e zona ----------
+          // Analogia: i cassetti di un archivio con le etichette colorate —
+          // clicchi su un'etichetta e vedi solo le schede di quel cassetto.
+          if (!_caricamento && _schede.isNotEmpty) _buildBarraFiltri(),
+
+          Expanded(
+            child: _schede.isEmpty && !_caricamento
+                ? _buildStatoVuoto()
+                : _schedeFiltrate.isEmpty
+                ? Center(
+                    child: Column(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Icon(
+                          Icons.filter_list_off,
+                          size: 48,
+                          color: Colors.grey.shade400,
+                        ),
+                        const SizedBox(height: 12),
+                        Text(
+                          'Nessuna scheda con questi filtri',
+                          style: TextStyle(
+                            color: Colors.grey.shade500,
+                            fontSize: 14,
+                          ),
+                        ),
+                        const SizedBox(height: 8),
+                        TextButton(
+                          onPressed: () => setState(() {
+                            _filtroTipo = null;
+                            _filtroZona = null;
+                          }),
+                          child: const Text('Rimuovi filtri'),
+                        ),
+                      ],
+                    ),
+                  )
+                : GridView.builder(
+                    padding: const EdgeInsets.all(8),
+                    gridDelegate:
+                        const SliverGridDelegateWithFixedCrossAxisCount(
+                          crossAxisCount: 2,
+                          crossAxisSpacing: 8,
+                          mainAxisSpacing: 8,
+                          childAspectRatio: 0.72,
+                        ),
+                    itemCount: _schedeFiltrate.length,
+                    itemBuilder: (ctx, i) {
+                      final scheda = _schedeFiltrate[i];
+                      return ImageCard(
+                        scheda: scheda,
+                        onElimina: () => _eliminaScheda(scheda),
+                        onToggleVisitata: () => _toggleVisitata(scheda),
+                        onNotaAggiornata: (nota) {
+                          setState(() {
+                            final idx = _schede.indexWhere(
+                              (s) => s.id == scheda.id,
+                            );
+                            if (idx != -1) {
+                              _schede[idx] = _schede[idx].copyWith(note: nota);
+                            }
+                          });
+                        },
+                      );
+                    },
+                  ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  // ---------------------------------------------------------------------------
+  // Barra filtri: due righe di chip scrollabili (tipo e zona)
+  //
+  // Ogni chip funziona come un interruttore: selezionato filtra, ri-toccato
+  // rimuove il filtro. I chip sono scrollabili orizzontalmente per gestire
+  // molti valori senza andare a capo.
+  // Analogia: i separatori colorati in uno schedario — clicchi sul divisore
+  // "Natura" e vedi solo le schede di quel tipo.
+  // ---------------------------------------------------------------------------
+  Widget _buildBarraFiltri() {
+    final haFiltri = _filtroTipo != null || _filtroZona != null;
+    final conteggio = _schedeFiltrate.length;
+    final totale = _schede.length;
+
+    return Container(
+      color: Theme.of(context).colorScheme.surfaceVariant.withOpacity(0.4),
+      padding: const EdgeInsets.symmetric(vertical: 6),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          // riga 1: filtro tipo
+          if (_tipiDisponibili.isNotEmpty)
+            _rigaChip(
+              icona: Icons.category_outlined,
+              etichetta: 'Tipo',
+              valori: _tipiDisponibili,
+              selezione: _filtroTipo,
+              onSelezione: (v) =>
+                  setState(() => _filtroTipo = _filtroTipo == v ? null : v),
+            ),
+
+          // riga 2: filtro zona
+          if (_zoneDisponibili.isNotEmpty)
+            _rigaChip(
+              icona: Icons.map_outlined,
+              etichetta: 'Zona',
+              valori: _zoneDisponibili,
+              selezione: _filtroZona,
+              onSelezione: (v) =>
+                  setState(() => _filtroZona = _filtroZona == v ? null : v),
+            ),
+
+          // contatore risultati + reset
+          if (haFiltri)
+            Padding(
+              padding: const EdgeInsets.fromLTRB(12, 2, 12, 0),
+              child: Row(
+                children: [
+                  Text(
+                    '$conteggio di $totale schede',
+                    style: TextStyle(fontSize: 12, color: Colors.grey.shade600),
+                  ),
+                  const Spacer(),
+                  GestureDetector(
+                    onTap: () => setState(() {
+                      _filtroTipo = null;
+                      _filtroZona = null;
+                    }),
+                    child: const Text(
+                      'Rimuovi filtri',
                       style: TextStyle(
-                        color: _messaggioImport.contains('Errore')
-                            ? Colors.red
-                            : Colors.green,
-                        fontSize: 13,
+                        fontSize: 12,
+                        color: Colors.blue,
+                        decoration: TextDecoration.underline,
                       ),
                     ),
                   ),
-
-                // griglia delle immagini, occupa tutto lo spazio rimanente
-                Expanded(
-                  child: images.isEmpty
-                      ? Center(
-                          child: Column(
-                            mainAxisAlignment: MainAxisAlignment.center,
-                            children: [
-                              const Icon(
-                                Icons.photo_library_outlined,
-                                size: 64,
-                                color: Colors.white24,
-                              ),
-                              const SizedBox(height: 16),
-                              const Text('Nessuna immagine disponibile'),
-                              // bottone centrale visibile solo nella griglia
-                              // di una città specifica
-                              if (widget.city != null) ...[
-                                const SizedBox(height: 12),
-                                ElevatedButton.icon(
-                                  onPressed: _mostraMenuAggiunta,
-                                  icon: const Icon(Icons.add_photo_alternate),
-                                  label: const Text('Aggiungi immagini'),
-                                ),
-                              ],
-                            ],
-                          ),
-                        )
-                      // GridView.builder costruisce la griglia in modo lazy,
-                      // cioè crea solo i widget visibili sullo schermo
-                      : GridView.builder(
-                          padding: const EdgeInsets.all(8),
-                          gridDelegate:
-                              const SliverGridDelegateWithFixedCrossAxisCount(
-                                crossAxisCount: 2, // 2 colonne
-                                crossAxisSpacing: 8, // spazio orizzontale
-                                mainAxisSpacing: 8, // spazio verticale
-                              ),
-                          itemCount: images.length,
-                          itemBuilder: (context, i) {
-                            // passa i dati del db all'ImageCard se disponibili.
-                            // controlla anche che l'indice sia valido
-                            final datiDb =
-                                _immaginiDaDb.isNotEmpty &&
-                                    i < _immaginiDaDb.length
-                                ? _immaginiDaDb[i]
-                                : null;
-                            return ImageCard(
-                              imageName: images[i],
-                              cityId: widget.city?.id,
-                              datiIniziali: datiDb,
-                            );
-                          },
-                        ),
-                ),
-              ],
+                ],
+              ),
             ),
+        ],
+      ),
+    );
+  }
+
+  Widget _rigaChip({
+    required IconData icona,
+    required String etichetta,
+    required List<String> valori,
+    required String? selezione,
+    required void Function(String) onSelezione,
+  }) {
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 3),
+      child: Row(
+        children: [
+          Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 10),
+            child: Icon(icona, size: 16, color: Colors.blueGrey),
+          ),
+          Expanded(
+            child: SingleChildScrollView(
+              scrollDirection: Axis.horizontal,
+              child: Row(
+                children: valori.map((v) {
+                  final selezionato = selezione == v;
+                  return Padding(
+                    padding: const EdgeInsets.only(right: 6),
+                    child: FilterChip(
+                      label: Text(
+                        v,
+                        style: TextStyle(
+                          fontSize: 12,
+                          color: selezionato ? Colors.white : null,
+                        ),
+                      ),
+                      selected: selezionato,
+                      onSelected: (_) => onSelezione(v),
+                      selectedColor: Colors.blue,
+                      checkmarkColor: Colors.white,
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 4,
+                        vertical: 0,
+                      ),
+                      visualDensity: VisualDensity.compact,
+                    ),
+                  );
+                }).toList(),
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildStatoVuoto() {
+    return Center(
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Icon(
+            Icons.photo_library_outlined,
+            size: 72,
+            color: Colors.grey.shade300,
+          ),
+          const SizedBox(height: 16),
+          Text(
+            'Nessuna scheda ancora',
+            style: TextStyle(fontSize: 16, color: Colors.grey.shade500),
+          ),
+          if (widget.city != null) ...[
+            const SizedBox(height: 8),
+            TextButton.icon(
+              onPressed: _mostraMenuAggiunta,
+              icon: const Icon(Icons.add),
+              label: const Text('Aggiungi la prima scheda'),
+            ),
+          ],
+        ],
+      ),
     );
   }
 }
